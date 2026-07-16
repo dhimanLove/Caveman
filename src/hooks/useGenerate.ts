@@ -38,6 +38,7 @@ export function useGenerate() {
     setState((s) => ({ ...s, error: null, data: null, isPending: true }));
 
     try {
+      if (!auth) throw new Error("Firebase Auth not initialized");
       const user = auth.currentUser;
       if (!user) throw new Error("Not signed in");
 
