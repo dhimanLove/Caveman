@@ -345,37 +345,30 @@ export const generateReadme = createServerFn({ method: "POST" })
       enterprise: "Formal, polished. Write for a corporate audience. Use complete sentences.",
     };
 
-    const prompt = `You are a senior technical writer generating a README.md for an open-source project.
+const prompt = `You are a senior technical writer generating a README.md for a software project.
 
-ANALYSIS INSTRUCTIONS:
-Analyze the provided CONTEXT deeply and extract real information for every section. You have access to:
-- The package.json (dependencies, scripts, metadata)
-- Entry point source code (imports, component structure, routing)
-- Tech stack detection
-- TypeScript configuration
-- HTML metadata
+CORE INSTRUCTION:
+Deeply analyze the provided repository data in the CONTEXT block. Do not guess, invent, or assume features, dependencies, or architectures. Base every single claim on the actual code, configuration files, and dependencies provided.
 
-CRITICAL — Infer the project purpose: If no explicit description is provided, determine what this project is from its dependencies, scripts, and source code. For example:
-- Dependencies like "ai", "@ai-sdk/*", "groq" → AI/generation tool
-- Dependencies like "framer-motion", "react", "react-router" → React frontend app
-- Dependencies like "express", "trpc", "prisma" → API/backend server
-- Scripts like "dev", "build", "preview" → web application
-Be specific about what the project does in the title and description.
+CONTEXT AVAILABLE TO YOU:
+- Configuration files (e.g., package.json, tsconfig.json)
+- Project structure and routing configurations
+- Source code entry points
+- HTML metadata and existing documentation fragments
 
-For each section, DERIVE real content from this data:
-- **Folder Structure**: Derive a logical project tree from the dependencies, entry point imports, and config files. Show where source, components, styles, configs live.
-- **Tech Stack**: List every detected technology with a brief explanation of what it's used for (e.g., "React — UI components", "React Router — client-side routing").
-- **Features**: Extract from the dependencies and source code what the project likely offers (e.g., React Router → routing, Framer Motion → animations, TanStack Query → data fetching).
-- **Architecture**: Describe the project architecture based on the tech stack (SPA with React, Vite build system, component structure, routing approach).
-- **Installation**: Provide npm/yarn install based on the package manager hint in lockfile.
-- **Usage**: Describe how to run the project (dev server, build, preview) based on package.json scripts.
-- **Performance, Security, Testing, Deployment**: Infer reasonable best practices based on the tech stack (e.g., Vite for fast builds, TypeScript for type safety).
-- **Every section**: MUST have real, meaningful content. Never write "not specified" or "no information available".
+ANALYSIS TASKS:
+1. Project Purpose: Define exactly what the project does. Look at the primary dependencies, scripts, and main source code to determine if it is a frontend app, an API, or a library.
+2. Folder Structure: Map the actual folder tree based on the provided file paths and imports. Do not add standard boilerplate folders unless they exist in the context.
+3. Tech Stack: List the exact technologies found in the configuration files. Briefly explain the role of each tool within this specific project.
+4. Features: Identify features only if they are backed by the code. For example, only mention "Authentication" if auth libraries or middleware are clearly present.
+5. Installation & Usage: Provide setup commands based strictly on the detected package manager (npm, yarn, pnpm) and the exact scripts defined in the configuration files (like "npm run dev").
+6. Architecture & Best Practices: Describe the system architecture based entirely on the tech stack and code layout. 
 
 RULES:
-- Base everything on the CONTEXT below. You may REASON from the data but do not fabricate technologies not listed.
-- Do NOT add badges, image placeholders, or screenshot links unless the existing README contains them.
-- If the existing README is provided, you may REFERENCE it but produce fresh improved content.
+- Never write "not specified" or "no information available". If data is missing for a section, omit that section entirely.
+- Do not add placeholder links, fake badges, or fake image links.
+- Write in short, clear, and direct sentences.
+- Keep the output professional and highly factual.
 
 CONTEXT:
 ${contextBlock}
@@ -386,12 +379,12 @@ Tone (${data.tone}): ${toneGuides[data.tone]}
 Sections to include (in order): ${data.sections.join(", ")}
 
 OUTPUT FORMAT:
-Return ONLY valid Markdown. No preamble, no explanation, no code fences around the entire output.
-Start directly with "# ${projectTitle}".
-Use proper markdown code fences (\`\`\`) with language tags for code blocks.
+Output only the valid Markdown for the README.md. Do not include introductory text. Do not wrap the entire output in markdown code fences.
+Begin directly with "# ${projectTitle}".
+Use proper markdown code fences (\`\`\`) with language tags for code examples.
 
 ---METADATA---
-Return this exact JSON block after the README, separated by "---METADATA---":
+Return this exact JSON block after the README content, separated by a line containing only "---METADATA---":
 ${JSON.stringify({
   inferredTitle: projectTitle,
   inferredDescription: projectDesc,
