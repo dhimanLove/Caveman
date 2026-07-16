@@ -2,10 +2,22 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  Link as LinkIcon, Warning, MagnifyingGlass,
-  Check, CircleNotch, ArrowRight, Download, Copy,
-  FileCode, SignOut, CaretDown, MagnifyingGlass as SearchIcon,
-  CaretUp, CheckSquare, Square,
+  Link as LinkIcon,
+  Warning,
+  MagnifyingGlass,
+  Check,
+  CircleNotch,
+  ArrowRight,
+  Download,
+  Copy,
+  FileCode,
+  SignOut,
+  CaretDown,
+  MagnifyingGlass as SearchIcon,
+  CaretUp,
+  CheckSquare,
+  Square,
+  PencilSimple,
 } from "@phosphor-icons/react";
 
 import { useAuth } from "@/hooks/useAuth";
@@ -17,7 +29,11 @@ export const Route = createFileRoute("/generate")({
   head: () => ({
     meta: [
       { title: "Generate a README — Caveman" },
-      { name: "description", content: "Paste a GitHub URL or describe your project. Caveman generates a polished README.md in seconds." },
+      {
+        name: "description",
+        content:
+          "Paste a GitHub URL or describe your project. Caveman generates a polished README.md in seconds.",
+      },
     ],
   }),
   component: GeneratePage,
@@ -28,9 +44,23 @@ type Tone = "technical" | "friendly" | "enterprise";
 type Tab = "url" | "describe";
 
 const ALL_SECTIONS = [
-  "Installation", "Usage", "API Docs", "Contributing", "License",
-  "Badges", "Tech Stack", "Folder Structure", "Features", "Architecture",
-  "Performance", "Security", "Deployment", "Testing", "FAQ", "Changelog", "Authors",
+  "Installation",
+  "Usage",
+  "API Docs",
+  "Contributing",
+  "License",
+  "Badges",
+  "Tech Stack",
+  "Folder Structure",
+  "Features",
+  "Architecture",
+  "Performance",
+  "Security",
+  "Deployment",
+  "Testing",
+  "FAQ",
+  "Changelog",
+  "Authors",
 ];
 
 const STYLE_META: Record<Style, { desc: string }> = {
@@ -45,7 +75,13 @@ const TONE_OPTIONS = [
   { value: "enterprise" as Tone, label: "Enterprise", desc: "Formal, professional tone" },
 ];
 
-function SectionPicker({ selected, onChange }: { selected: string[]; onChange: (s: string[]) => void }) {
+function SectionPicker({
+  selected,
+  onChange,
+}: {
+  selected: string[];
+  onChange: (s: string[]) => void;
+}) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
   const ref = useRef<HTMLDivElement>(null);
@@ -90,7 +126,10 @@ function SectionPicker({ selected, onChange }: { selected: string[]; onChange: (
           className="absolute top-full mt-1 left-0 right-0 z-10 bg-cream-paper border border-ink rounded-2xl shadow-lg overflow-hidden"
         >
           <div className="relative border-b border-ink">
-            <SearchIcon size={11} className="absolute left-3 top-1/2 -translate-y-1/2 text-graphite" />
+            <SearchIcon
+              size={11}
+              className="absolute left-3 top-1/2 -translate-y-1/2 text-graphite"
+            />
             <input
               type="text"
               value={search}
@@ -125,7 +164,9 @@ function SectionPicker({ selected, onChange }: { selected: string[]; onChange: (
           <div className="flex items-center justify-between border-t border-ink px-3 py-1.5">
             <button
               type="button"
-              onClick={() => onChange(selected.length === ALL_SECTIONS.length ? [] : [...ALL_SECTIONS])}
+              onClick={() =>
+                onChange(selected.length === ALL_SECTIONS.length ? [] : [...ALL_SECTIONS])
+              }
               className="text-[10px] font-medium text-graphite hover:text-ink transition-colors"
             >
               {selected.length === ALL_SECTIONS.length ? "Deselect all" : "Select all"}
@@ -140,7 +181,15 @@ function SectionPicker({ selected, onChange }: { selected: string[]; onChange: (
   );
 }
 
-function Segmented<T extends string>({ value, onChange, options }: { value: T; onChange: (v: T) => void; options: { value: T; label: string }[] }) {
+function Segmented<T extends string>({
+  value,
+  onChange,
+  options,
+}: {
+  value: T;
+  onChange: (v: T) => void;
+  options: { value: T; label: string }[];
+}) {
   return (
     <div className="flex bg-cream-paper p-0.5 rounded-full border border-ink">
       {options.map((o) => (
@@ -184,25 +233,29 @@ function AuthenticatedApp({ user, onSignOut }: { user: any; onSignOut: () => voi
   const [style, setStyle] = useState<Style>("comprehensive");
   const [tone, setTone] = useState<Tone>("technical");
   const [sections, setSections] = useState<string[]>(ALL_SECTIONS);
-  const [view, setView] = useState<"preview" | "raw">("preview");
+  const [view, setView] = useState<"preview" | "raw" | "edit">("preview");
   const [copied, setCopied] = useState(false);
+  const [editableReadme, setEditableReadme] = useState("");
 
   const { isPending, data, error, cooldownExpiry, generate } = useGenerate();
 
   const readme = data?.readme ?? "";
+  useEffect(() => {
+    if (readme) setEditableReadme(readme);
+  }, [readme]);
   const disabled = isPending || (tab === "url" ? !url : !description);
   const inCooldown = cooldownExpiry > Date.now();
 
   const onCopy = async () => {
     if (!readme) return;
-    await navigator.clipboard.writeText(readme);
+    await navigator.clipboard.writeText(editableReadme || readme);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
 
   const onDownload = () => {
     if (!readme) return;
-    const blob = new Blob([readme], { type: "text/markdown" });
+    const blob = new Blob([editableReadme || readme], { type: "text/markdown" });
     const a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
     a.download = "README.md";
@@ -229,13 +282,19 @@ function AuthenticatedApp({ user, onSignOut }: { user: any; onSignOut: () => voi
           <span className="text-xs text-graphite">README Generator</span>
         </div>
         <div className="flex items-center gap-3">
-          {data && (
-            <span className="text-[10px] text-graphite">{data.remaining}/10 remaining</span>
-          )}
+          {data && <span className="text-[10px] text-graphite">{data.remaining}/10 remaining</span>}
           {user?.photoURL && (
-            <img src={user.photoURL} alt="" className="w-6 h-6 rounded-full border border-ink" referrerPolicy="no-referrer" />
+            <img
+              src={user.photoURL}
+              alt=""
+              className="w-6 h-6 rounded-full border border-ink"
+              referrerPolicy="no-referrer"
+            />
           )}
-          <button onClick={onSignOut} className="text-[10px] text-graphite hover:text-ink flex items-center gap-1">
+          <button
+            onClick={onSignOut}
+            className="text-[10px] text-graphite hover:text-ink flex items-center gap-1"
+          >
             <SignOut size={11} /> Sign out
           </button>
         </div>
@@ -244,19 +303,43 @@ function AuthenticatedApp({ user, onSignOut }: { user: any; onSignOut: () => voi
       <div className="flex-1 flex flex-col lg:flex-row">
         <AnimatePresence mode="wait">
           {inCooldown ? (
-            <motion.div key="cooldown" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex-1 flex items-center justify-center">
+            <motion.div
+              key="cooldown"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="flex-1 flex items-center justify-center"
+            >
               <CooldownTimer cooldownEnd={cooldownExpiry} />
             </motion.div>
           ) : (
-            <motion.div key="app" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex-1 flex flex-col lg:flex-row">
+            <motion.div
+              key="app"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="flex-1 flex flex-col lg:flex-row"
+            >
               <div className="w-full lg:w-[280px] shrink-0 border-r border-ink bg-cream-paper">
                 <div className="p-5 space-y-6">
                   <div className="space-y-2.5">
-                    <label className="text-[10px] font-medium text-graphite uppercase tracking-[0.286em]">Source</label>
-                    <Segmented value={tab} onChange={setTab} options={[{ value: "url", label: "URL" }, { value: "describe", label: "Describe" }]} />
+                    <label className="text-[10px] font-medium text-graphite uppercase tracking-[0.286em]">
+                      Source
+                    </label>
+                    <Segmented
+                      value={tab}
+                      onChange={setTab}
+                      options={[
+                        { value: "url", label: "URL" },
+                        { value: "describe", label: "Describe" },
+                      ]}
+                    />
                     {tab === "url" ? (
                       <div className="relative">
-                        <LinkIcon size={12} className="absolute left-3 top-1/2 -translate-y-1/2 text-graphite" />
+                        <LinkIcon
+                          size={12}
+                          className="absolute left-3 top-1/2 -translate-y-1/2 text-graphite"
+                        />
                         <input
                           type="url"
                           value={url}
@@ -277,7 +360,9 @@ function AuthenticatedApp({ user, onSignOut }: { user: any; onSignOut: () => voi
                   </div>
 
                   <div className="space-y-1.5">
-                    <label className="text-[10px] font-medium text-graphite uppercase tracking-[0.286em]">Style</label>
+                    <label className="text-[10px] font-medium text-graphite uppercase tracking-[0.286em]">
+                      Style
+                    </label>
                     <div className="space-y-1">
                       {(["minimal", "standard", "comprehensive"] as Style[]).map((s) => (
                         <button
@@ -290,14 +375,22 @@ function AuthenticatedApp({ user, onSignOut }: { user: any; onSignOut: () => voi
                               : "bg-cream-paper text-graphite border-ink hover:bg-ink/5"
                           }`}
                         >
-                          <span className={`w-2 h-2 rounded-full border shrink-0 ${
-                            style === s ? "border-cream-paper bg-cream-paper" : "border-graphite"
-                          }`} />
+                          <span
+                            className={`w-2 h-2 rounded-full border shrink-0 ${
+                              style === s ? "border-cream-paper bg-cream-paper" : "border-graphite"
+                            }`}
+                          />
                           <div className="min-w-0">
-                            <span className="text-xs font-medium capitalize block truncate">{s}</span>
-                            <span className={`text-[10px] block truncate ${
-                              style === s ? "text-cream-paper/70" : "text-graphite"
-                            }`}>{STYLE_META[s].desc}</span>
+                            <span className="text-xs font-medium capitalize block truncate">
+                              {s}
+                            </span>
+                            <span
+                              className={`text-[10px] block truncate ${
+                                style === s ? "text-cream-paper/70" : "text-graphite"
+                              }`}
+                            >
+                              {STYLE_META[s].desc}
+                            </span>
                           </div>
                         </button>
                       ))}
@@ -312,7 +405,9 @@ function AuthenticatedApp({ user, onSignOut }: { user: any; onSignOut: () => voi
                   </div>
 
                   <div className="space-y-1.5">
-                    <label className="text-[10px] font-medium text-graphite uppercase tracking-[0.286em]">Tone</label>
+                    <label className="text-[10px] font-medium text-graphite uppercase tracking-[0.286em]">
+                      Tone
+                    </label>
                     <div className="space-y-1">
                       {TONE_OPTIONS.map((o) => (
                         <button
@@ -325,14 +420,22 @@ function AuthenticatedApp({ user, onSignOut }: { user: any; onSignOut: () => voi
                               : "bg-cream-paper text-graphite border-ink hover:bg-ink/5"
                           }`}
                         >
-                          <span className={`w-2 h-2 rounded-full border shrink-0 ${
-                            tone === o.value ? "border-cream-paper bg-cream-paper" : "border-graphite"
-                          }`} />
+                          <span
+                            className={`w-2 h-2 rounded-full border shrink-0 ${
+                              tone === o.value
+                                ? "border-cream-paper bg-cream-paper"
+                                : "border-graphite"
+                            }`}
+                          />
                           <div className="min-w-0">
                             <span className="text-xs font-medium block truncate">{o.label}</span>
-                            <span className={`text-[10px] block truncate ${
-                              tone === o.value ? "text-cream-paper/70" : "text-graphite"
-                            }`}>{o.desc}</span>
+                            <span
+                              className={`text-[10px] block truncate ${
+                                tone === o.value ? "text-cream-paper/70" : "text-graphite"
+                              }`}
+                            >
+                              {o.desc}
+                            </span>
                           </div>
                         </button>
                       ))}
@@ -345,14 +448,23 @@ function AuthenticatedApp({ user, onSignOut }: { user: any; onSignOut: () => voi
                     className="w-full h-10 text-xs font-medium bg-sunshine-highlight text-ink rounded-full hover:opacity-90 disabled:opacity-30 transition-opacity flex items-center justify-center gap-2"
                   >
                     {isPending ? (
-                      <><CircleNotch size={13} className="animate-spin" /> Generating</>
+                      <>
+                        <CircleNotch size={13} className="animate-spin" /> Generating
+                      </>
                     ) : (
-                      <><MagnifyingGlass size={13} weight="bold" /> Generate README <ArrowRight size={11} /></>
+                      <>
+                        <MagnifyingGlass size={13} weight="bold" /> Generate README{" "}
+                        <ArrowRight size={11} />
+                      </>
                     )}
                   </button>
 
                   {error && (
-                    <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="flex items-start gap-2 rounded-2xl border border-ink p-3 text-ink">
+                    <motion.div
+                      initial={{ opacity: 0, y: 8 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="flex items-start gap-2 rounded-2xl border border-ink p-3 text-ink"
+                    >
                       <Warning size={13} className="shrink-0 mt-0.5" />
                       <span className="text-xs font-medium">{error}</span>
                     </motion.div>
@@ -368,7 +480,12 @@ function AuthenticatedApp({ user, onSignOut }: { user: any; onSignOut: () => voi
                       <span>Analyzing repository...</span>
                     </div>
                     <div className="flex-1 h-[2px] bg-ink/10 rounded-full overflow-hidden max-w-[200px]">
-                      <motion.div className="h-full bg-ink rounded-full" initial={{ width: "0%" }} animate={{ width: "100%" }} transition={{ duration: 3, ease: "linear" }} />
+                      <motion.div
+                        className="h-full bg-ink rounded-full"
+                        initial={{ width: "0%" }}
+                        animate={{ width: "100%" }}
+                        transition={{ duration: 3, ease: "linear" }}
+                      />
                     </div>
                   </div>
                 )}
@@ -378,29 +495,54 @@ function AuthenticatedApp({ user, onSignOut }: { user: any; onSignOut: () => voi
                     <div className="flex items-center gap-2">
                       <FileCode size={13} className="text-ink" />
                       <span className="text-xs font-medium text-ink">Output</span>
-                      <span className="text-[10px] font-mono text-graphite border border-ink rounded-full px-2 py-0.5">README.md</span>
+                      <span className="text-[10px] font-mono text-graphite border border-ink rounded-full px-2 py-0.5">
+                        README.md
+                      </span>
                     </div>
                     <div className="flex items-center gap-2">
                       <div className="flex items-center border border-ink rounded-full p-0.5">
-                        {(["preview", "raw"] as const).map((v) => (
+                        {(["preview", "raw", "edit"] as const).map((v) => (
                           <button
                             key={v}
                             onClick={() => setView(v)}
                             className={`text-[10px] font-medium px-2.5 py-1 rounded-full transition-all ${
-                              view === v ? "bg-ink text-cream-paper" : "text-graphite hover:text-ink"
+                              view === v
+                                ? "bg-ink text-cream-paper"
+                                : "text-graphite hover:text-ink"
                             }`}
                           >
-                            {v === "preview" ? "Preview" : "Raw"}
+                            {v === "preview" ? "Preview" : v === "raw" ? "Raw" : "Edit"}
                           </button>
                         ))}
                       </div>
-                      <button onClick={onCopy} disabled={!readme} className={`h-7 text-[10px] font-medium rounded-full border px-3 flex items-center gap-1 transition-all ${
-                        copied ? "bg-mint-signal/10 text-mint-signal border-mint-signal" : "bg-cream-paper text-graphite border-ink hover:text-ink disabled:opacity-30"
-                      }`}>
-                        {copied ? <><Check size={10} />Copied</> : <><Copy size={10} />Copy</>}
+                      <button
+                        onClick={onCopy}
+                        disabled={!readme}
+                        className={`h-7 text-[10px] font-medium rounded-full border px-3 flex items-center gap-1 transition-all ${
+                          copied
+                            ? "bg-mint-signal/10 text-mint-signal border-mint-signal"
+                            : "bg-cream-paper text-graphite border-ink hover:text-ink disabled:opacity-30"
+                        }`}
+                      >
+                        {copied ? (
+                          <>
+                            <Check size={10} />
+                            Copied
+                          </>
+                        ) : (
+                          <>
+                            <Copy size={10} />
+                            Copy
+                          </>
+                        )}
                       </button>
-                      <button onClick={onDownload} disabled={!readme} className="h-7 text-[10px] font-medium rounded-full border border-ink bg-cream-paper text-graphite hover:text-ink disabled:opacity-30 px-3 flex items-center gap-1">
-                        <Download size={10} />Download
+                      <button
+                        onClick={onDownload}
+                        disabled={!readme}
+                        className="h-7 text-[10px] font-medium rounded-full border border-ink bg-cream-paper text-graphite hover:text-ink disabled:opacity-30 px-3 flex items-center gap-1"
+                      >
+                        <Download size={10} />
+                        Download
                       </button>
                     </div>
                   </div>
@@ -410,9 +552,15 @@ function AuthenticatedApp({ user, onSignOut }: { user: any; onSignOut: () => voi
                       <div className="p-10 space-y-4 max-w-3xl mx-auto">
                         {[...Array(5)].map((_, i) => (
                           <div key={i} className="space-y-2">
-                            <div className="h-4 border border-ink/20 rounded-full" style={{ width: `${30 + Math.random() * 40}%` }} />
+                            <div
+                              className="h-4 border border-ink/20 rounded-full"
+                              style={{ width: `${30 + Math.random() * 40}%` }}
+                            />
                             <div className="h-2.5 border border-ink/10 rounded-full w-full" />
-                            <div className="h-2.5 border border-ink/10 rounded-full" style={{ width: `${50 + Math.random() * 40}%` }} />
+                            <div
+                              className="h-2.5 border border-ink/10 rounded-full"
+                              style={{ width: `${50 + Math.random() * 40}%` }}
+                            />
                           </div>
                         ))}
                       </div>
@@ -426,15 +574,30 @@ function AuthenticatedApp({ user, onSignOut }: { user: any; onSignOut: () => voi
                             <span className="ml-3 text-[10px] text-graphite">README.md</span>
                           </div>
                           <div className="p-6 lg:p-10">
-                            {view === "preview" ? <MarkdownRender text={readme} /> : (
-                              <pre className="whitespace-pre-wrap font-mono text-sm text-ink leading-relaxed overflow-x-auto">{readme}</pre>
+                            {view === "preview" ? (
+                              <MarkdownRender text={editableReadme || readme} />
+                            ) : view === "raw" ? (
+                              <pre className="whitespace-pre-wrap font-mono text-sm text-ink leading-relaxed overflow-x-auto">
+                                {editableReadme || readme}
+                              </pre>
+                            ) : (
+                              <textarea
+                                value={editableReadme}
+                                onChange={(e) => setEditableReadme(e.target.value)}
+                                className="w-full min-h-[400px] font-mono text-sm text-ink leading-relaxed bg-cream-paper outline-none resize-none"
+                                spellCheck={false}
+                              />
                             )}
                           </div>
                         </div>
                       </div>
                     ) : (
                       <div className="h-full flex flex-col items-center justify-center text-center px-6">
-                        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
+                        <motion.div
+                          initial={{ opacity: 0, y: 12 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ duration: 0.5 }}
+                        >
                           <div className="w-12 h-12 rounded-3xl border border-ink bg-cream-paper flex items-center justify-center mb-4 mx-auto">
                             <FileCode size={20} className="text-ink" />
                           </div>
@@ -459,7 +622,8 @@ function AuthenticatedApp({ user, onSignOut }: { user: any; onSignOut: () => voi
 function MarkdownRender({ text }: { text: string }) {
   const lines = text.split("\n");
   const out: React.ReactNode[] = [];
-  let i = 0, key = 0;
+  let i = 0,
+    key = 0;
 
   while (i < lines.length) {
     const line = lines[i];
@@ -475,68 +639,143 @@ function MarkdownRender({ text }: { text: string }) {
         <div key={key++} className="my-5 rounded-3xl overflow-hidden border border-ink">
           {lang && (
             <div className="px-4 py-2 bg-cream-paper border-b border-ink flex items-center justify-between">
-              <span className="text-[10px] font-medium uppercase tracking-[0.286em] text-graphite">{lang}</span>
-              <div className="flex gap-1"><span className="w-2 h-2 rounded-full border border-ink" /><span className="w-2 h-2 rounded-full border border-ink" /><span className="w-2 h-2 rounded-full border border-ink" /></div>
+              <span className="text-[10px] font-medium uppercase tracking-[0.286em] text-graphite">
+                {lang}
+              </span>
+              <div className="flex gap-1">
+                <span className="w-2 h-2 rounded-full border border-ink" />
+                <span className="w-2 h-2 rounded-full border border-ink" />
+                <span className="w-2 h-2 rounded-full border border-ink" />
+              </div>
             </div>
           )}
-          <pre className={`p-4 font-mono text-sm overflow-x-auto leading-relaxed ${isTree ? "bg-cream-paper text-ink" : "bg-ink text-cream-paper"}`}>
+          <pre
+            className={`p-4 font-mono text-sm overflow-x-auto leading-relaxed ${isTree ? "bg-cream-paper text-ink" : "bg-ink text-cream-paper"}`}
+          >
             <code>{buf.join("\n")}</code>
           </pre>
-        </div>
+        </div>,
       );
       continue;
     }
 
     if (line.startsWith("|") && lines[i + 1]?.includes("|") && lines[i + 1]?.includes("-")) {
-      const headers = line.split("|").map((h) => h.trim()).filter(Boolean);
+      const headers = line
+        .split("|")
+        .map((h) => h.trim())
+        .filter(Boolean);
       const rows: string[][] = [];
       i += 2;
       while (i < lines.length && lines[i].startsWith("|")) {
-        rows.push(lines[i].split("|").map((r) => r.trim()).filter(Boolean));
+        rows.push(
+          lines[i]
+            .split("|")
+            .map((r) => r.trim())
+            .filter(Boolean),
+        );
         i++;
       }
       out.push(
-        <div key={key++} className="my-5 overflow-x-auto border border-ink rounded-3xl bg-cream-paper">
+        <div
+          key={key++}
+          className="my-5 overflow-x-auto border border-ink rounded-3xl bg-cream-paper"
+        >
           <table className="w-full text-left border-collapse">
-            <thead><tr className="border-b border-ink">{headers.map((h, idx) => <th key={idx} className="p-3 font-medium text-ink text-sm">{h}</th>)}</tr></thead>
-            <tbody className="divide-y divide-ink">{rows.map((row, rIdx) => <tr key={rIdx} className="hover:bg-ink/5">{row.map((cell, cIdx) => <td key={cIdx} className="p-3 text-graphite text-sm">{inline(cell)}</td>)}</tr>)}</tbody>
+            <thead>
+              <tr className="border-b border-ink">
+                {headers.map((h, idx) => (
+                  <th key={idx} className="p-3 font-medium text-ink text-sm">
+                    {h}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-ink">
+              {rows.map((row, rIdx) => (
+                <tr key={rIdx} className="hover:bg-ink/5">
+                  {row.map((cell, cIdx) => (
+                    <td key={cIdx} className="p-3 text-graphite text-sm">
+                      {inline(cell)}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
           </table>
-        </div>
+        </div>,
       );
       continue;
     }
 
     if (line.startsWith("> ")) {
-      out.push(<blockquote key={key++} className="my-4 pl-4 border-l-2 border-ink p-3 text-sm italic text-graphite">{inline(line.slice(2))}</blockquote>);
+      out.push(
+        <blockquote
+          key={key++}
+          className="my-4 pl-4 border-l-2 border-ink p-3 text-sm italic text-graphite"
+        >
+          {inline(line.slice(2))}
+        </blockquote>,
+      );
       i++;
       continue;
     }
 
     if (line.startsWith("# ")) {
-      out.push(<h1 key={key++} className="mt-8 mb-4 text-3xl font-medium text-ink border-b border-ink pb-3">{inline(line.slice(2))}</h1>);
+      out.push(
+        <h1
+          key={key++}
+          className="mt-8 mb-4 text-3xl font-medium text-ink border-b border-ink pb-3"
+        >
+          {inline(line.slice(2))}
+        </h1>,
+      );
       i++;
       continue;
     }
     if (line.startsWith("## ")) {
-      out.push(<h2 key={key++} className="mt-7 mb-3 text-xl font-medium text-ink">{inline(line.slice(3))}</h2>);
+      out.push(
+        <h2 key={key++} className="mt-7 mb-3 text-xl font-medium text-ink">
+          {inline(line.slice(3))}
+        </h2>,
+      );
       i++;
       continue;
     }
     if (line.startsWith("### ")) {
-      out.push(<h3 key={key++} className="mt-6 mb-2 text-lg font-medium text-ink">{inline(line.slice(4))}</h3>);
+      out.push(
+        <h3 key={key++} className="mt-6 mb-2 text-lg font-medium text-ink">
+          {inline(line.slice(4))}
+        </h3>,
+      );
       i++;
       continue;
     }
 
     if (line.startsWith("- ") || line.startsWith("* ")) {
       const items: string[] = [];
-      while (i < lines.length && (lines[i].startsWith("- ") || lines[i].startsWith("* "))) items.push(lines[i++].slice(2));
-      out.push(<ul key={key++} className="my-3 ml-5 list-disc space-y-1.5 text-sm text-graphite">{items.map((it, idx) => <li key={idx} className="leading-relaxed">{inline(it)}</li>)}</ul>);
+      while (i < lines.length && (lines[i].startsWith("- ") || lines[i].startsWith("* ")))
+        items.push(lines[i++].slice(2));
+      out.push(
+        <ul key={key++} className="my-3 ml-5 list-disc space-y-1.5 text-sm text-graphite">
+          {items.map((it, idx) => (
+            <li key={idx} className="leading-relaxed">
+              {inline(it)}
+            </li>
+          ))}
+        </ul>,
+      );
       continue;
     }
 
-    if (line.trim() === "") { i++; continue; }
-    out.push(<p key={key++} className="my-3 text-sm text-graphite leading-relaxed">{inline(line)}</p>);
+    if (line.trim() === "") {
+      i++;
+      continue;
+    }
+    out.push(
+      <p key={key++} className="my-3 text-sm text-graphite leading-relaxed">
+        {inline(line)}
+      </p>,
+    );
     i++;
   }
   return <div className="max-w-none">{out}</div>;
@@ -545,12 +784,27 @@ function MarkdownRender({ text }: { text: string }) {
 function inline(text: string): React.ReactNode {
   const nodes: React.ReactNode[] = [];
   const regex = /(\*\*[^*]+\*\*|`[^`]+`)/g;
-  let last = 0, m: RegExpExecArray | null, k = 0;
+  let last = 0,
+    m: RegExpExecArray | null,
+    k = 0;
   while ((m = regex.exec(text)) !== null) {
     if (m.index > last) nodes.push(text.slice(last, m.index));
     const tok = m[0];
-    if (tok.startsWith("**")) nodes.push(<strong key={k++} className="font-medium text-ink">{tok.slice(2, -2)}</strong>);
-    else nodes.push(<code key={k++} className="bg-cream-paper border border-ink px-1.5 py-0.5 font-mono text-xs text-ink rounded-md">{tok.slice(1, -1)}</code>);
+    if (tok.startsWith("**"))
+      nodes.push(
+        <strong key={k++} className="font-medium text-ink">
+          {tok.slice(2, -2)}
+        </strong>,
+      );
+    else
+      nodes.push(
+        <code
+          key={k++}
+          className="bg-cream-paper border border-ink px-1.5 py-0.5 font-mono text-xs text-ink rounded-md"
+        >
+          {tok.slice(1, -1)}
+        </code>,
+      );
     last = m.index + tok.length;
   }
   if (last < text.length) nodes.push(text.slice(last));
