@@ -34,7 +34,7 @@ const faqJsonLd = {
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Caveman — AI-Powered README Generator" },
+      { title: "Caveman" },
       { name: "description", content: "Generate professional README files in seconds. Paste a GitHub URL or describe your project — Caveman writes docs your users will actually read." },
       { property: "og:title", content: "Caveman — AI-Powered README Generator" },
       { property: "og:description", content: "Generate professional README files in seconds with AI." },

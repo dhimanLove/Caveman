@@ -1,15 +1,16 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useMutation } from "@tanstack/react-query";
-import { useServerFn } from "@tanstack/react-start";
-import { useState, useEffect } from "react";
-import { motion } from "framer-motion";
+import { useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   Link as LinkIcon, Warning, MagnifyingGlass,
   Check, CircleNotch, ArrowRight, Download, Copy,
-  FileCode, SealCheck, Folder,
+  FileCode, SignOut,
 } from "@phosphor-icons/react";
 
-import { generateReadme } from "@/lib/readme.functions";
+import { useAuth } from "@/hooks/useAuth";
+import { useGenerate } from "@/hooks/useGenerate";
+import { SignInScreen } from "@/components/auth/SignInScreen";
+import { CooldownTimer } from "@/components/auth/CooldownTimer";
 
 export const Route = createFileRoute("/generate")({
   head: () => ({
@@ -31,16 +32,6 @@ const ALL_SECTIONS = [
   "Performance", "Security", "Deployment", "Testing", "FAQ", "Changelog", "Authors",
 ];
 
-type DiscoveryData = {
-  inferredTitle: string;
-  inferredDescription: string;
-  detectedStack: string[];
-  fileCount: number;
-  componentCount: number;
-  apiRoutes: number;
-  databaseModels: number;
-};
-
 function Segmented<T extends string>({ value, onChange, options }: { value: T; onChange: (v: T) => void; options: { value: T; label: string }[] }) {
   return (
     <div className="flex bg-cream-paper p-0.5 rounded-full border border-ink">
@@ -61,6 +52,24 @@ function Segmented<T extends string>({ value, onChange, options }: { value: T; o
 }
 
 function GeneratePage() {
+  const { user, loading, signIn, signOut } = useAuth();
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-cream-paper flex items-center justify-center">
+        <CircleNotch size={20} className="text-ink animate-spin" />
+      </div>
+    );
+  }
+
+  if (!user) {
+    return <SignInScreen onSignIn={signIn} />;
+  }
+
+  return <AuthenticatedApp user={user} onSignOut={signOut} />;
+}
+
+function AuthenticatedApp({ user, onSignOut }: { user: any; onSignOut: () => void }) {
   const [tab, setTab] = useState<Tab>("url");
   const [url, setUrl] = useState("");
   const [description, setDescription] = useState("");
@@ -70,15 +79,12 @@ function GeneratePage() {
   const [view, setView] = useState<"preview" | "raw">("preview");
   const [copied, setCopied] = useState(false);
 
-  const generateFn = useServerFn(generateReadme);
-  const mutation = useMutation({
-    mutationFn: (input: Parameters<typeof generateFn>[0]) => generateFn(input),
-  });
+  const { isPending, data, error, cooldownExpiry, generate } = useGenerate();
 
   const toggleSection = (s: string) => setSections((cur) => (cur.includes(s) ? cur.filter((x) => x !== s) : [...cur, s]));
-  const readme = mutation.data?.readme ?? "";
-  const discovery = (mutation.data as any)?.discovery as DiscoveryData | undefined;
-  const disabled = mutation.isPending || (tab === "url" ? !url : !description);
+  const readme = data?.readme ?? "";
+  const disabled = isPending || (tab === "url" ? !url : !description);
+  const inCooldown = cooldownExpiry > Date.now();
 
   const onCopy = async () => {
     if (!readme) return;
@@ -97,6 +103,16 @@ function GeneratePage() {
     URL.revokeObjectURL(a.href);
   };
 
+  const handleGenerate = () => {
+    generate({
+      projectUrl: tab === "url" ? url : "",
+      description: tab === "describe" ? description : "",
+      style,
+      sections,
+      tone,
+    });
+  };
+
   return (
     <div className="min-h-screen bg-cream-paper flex flex-col">
       <header className="h-12 border-b border-ink bg-cream-paper flex items-center justify-between px-6 shrink-0">
@@ -105,204 +121,206 @@ function GeneratePage() {
           <span className="w-px h-3 bg-ink/30" />
           <span className="text-xs text-graphite">README Generator</span>
         </div>
+        <div className="flex items-center gap-3">
+          {data && (
+            <span className="text-[10px] text-graphite">{data.remaining}/10 remaining</span>
+          )}
+          {user?.photoURL && (
+            <img src={user.photoURL} alt="" className="w-6 h-6 rounded-full border border-ink" referrerPolicy="no-referrer" />
+          )}
+          <button onClick={onSignOut} className="text-[10px] text-graphite hover:text-ink flex items-center gap-1">
+            <SignOut size={11} /> Sign out
+          </button>
+        </div>
       </header>
 
       <div className="flex-1 flex flex-col lg:flex-row">
-        <div className="w-full lg:w-[280px] shrink-0 border-r border-ink bg-cream-paper">
-          <div className="p-5 space-y-6">
-            <div className="space-y-2.5">
-              <label className="text-[10px] font-medium text-graphite uppercase tracking-[0.286em]">Source</label>
-              <Segmented value={tab} onChange={setTab} options={[{ value: "url", label: "URL" }, { value: "describe", label: "Describe" }]} />
-              {tab === "url" ? (
-                <div className="relative">
-                  <LinkIcon size={12} className="absolute left-3 top-1/2 -translate-y-1/2 text-graphite" />
-                  <input
-                    type="url"
-                    value={url}
-                    onChange={(e) => setUrl(e.target.value)}
-                    placeholder="github.com/user/repo"
-                    className="w-full h-9 pl-9 pr-3 text-xs bg-cream-paper border border-ink rounded-full text-ink placeholder:text-graphite outline-none focus:border-ink"
-                  />
-                </div>
-              ) : (
-                <textarea
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  placeholder="Describe your project..."
-                  rows={3}
-                  className="w-full px-3 py-2 text-xs bg-cream-paper border border-ink rounded-2xl text-ink placeholder:text-graphite outline-none focus:border-ink resize-none"
-                />
-              )}
-            </div>
+        <AnimatePresence mode="wait">
+          {inCooldown ? (
+            <motion.div key="cooldown" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex-1 flex items-center justify-center">
+              <CooldownTimer cooldownEnd={cooldownExpiry} />
+            </motion.div>
+          ) : (
+            <motion.div key="app" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex-1 flex flex-col lg:flex-row">
+              <div className="w-full lg:w-[280px] shrink-0 border-r border-ink bg-cream-paper">
+                <div className="p-5 space-y-6">
+                  <div className="space-y-2.5">
+                    <label className="text-[10px] font-medium text-graphite uppercase tracking-[0.286em]">Source</label>
+                    <Segmented value={tab} onChange={setTab} options={[{ value: "url", label: "URL" }, { value: "describe", label: "Describe" }]} />
+                    {tab === "url" ? (
+                      <div className="relative">
+                        <LinkIcon size={12} className="absolute left-3 top-1/2 -translate-y-1/2 text-graphite" />
+                        <input
+                          type="url"
+                          value={url}
+                          onChange={(e) => setUrl(e.target.value)}
+                          placeholder="github.com/user/repo"
+                          className="w-full h-9 pl-9 pr-3 text-xs bg-cream-paper border border-ink rounded-full text-ink placeholder:text-graphite outline-none focus:border-ink"
+                        />
+                      </div>
+                    ) : (
+                      <textarea
+                        value={description}
+                        onChange={(e) => setDescription(e.target.value)}
+                        placeholder="Describe your project..."
+                        rows={3}
+                        className="w-full px-3 py-2 text-xs bg-cream-paper border border-ink rounded-2xl text-ink placeholder:text-graphite outline-none focus:border-ink resize-none"
+                      />
+                    )}
+                  </div>
 
-            <div className="space-y-2.5">
-              <label className="text-[10px] font-medium text-graphite uppercase tracking-[0.286em]">Style</label>
-              <Segmented value={style} onChange={setStyle} options={["minimal", "standard", "comprehensive"].map((s) => ({ value: s as Style, label: s }))} />
-            </div>
+                  <div className="space-y-2.5">
+                    <label className="text-[10px] font-medium text-graphite uppercase tracking-[0.286em]">Style</label>
+                    <Segmented value={style} onChange={setStyle} options={["minimal", "standard", "comprehensive"].map((s) => ({ value: s as Style, label: s }))} />
+                  </div>
 
-            <div className="space-y-2.5">
-              <label className="text-[10px] font-medium text-graphite uppercase tracking-[0.286em]">
-                Sections <span className="ml-1 normal-case tracking-normal text-graphite">({sections.length})</span>
-              </label>
-              <div className="flex flex-wrap gap-1.5">
-                {ALL_SECTIONS.map((s) => (
+                  <div className="space-y-2.5">
+                    <label className="text-[10px] font-medium text-graphite uppercase tracking-[0.286em]">
+                      Sections <span className="ml-1 normal-case tracking-normal text-graphite">({sections.length})</span>
+                    </label>
+                    <div className="flex flex-wrap gap-1.5">
+                      {ALL_SECTIONS.map((s) => (
+                        <button
+                          key={s}
+                          type="button"
+                          onClick={() => toggleSection(s)}
+                          className={`px-2.5 py-1 rounded-full border text-[10px] font-medium transition-all ${
+                            sections.includes(s)
+                              ? "bg-ink text-cream-paper border-ink"
+                              : "bg-cream-paper text-graphite border-ink hover:bg-ink/5"
+                          }`}
+                        >
+                          {s}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="space-y-2.5">
+                    <label className="text-[10px] font-medium text-graphite uppercase tracking-[0.286em]">Tone</label>
+                    <select
+                      value={tone}
+                      onChange={(e) => setTone(e.target.value as Tone)}
+                      className="w-full h-9 px-3 text-xs bg-cream-paper border border-ink rounded-full text-ink outline-none focus:border-ink appearance-none cursor-pointer"
+                    >
+                      <option value="technical">Technical</option>
+                      <option value="friendly">Friendly</option>
+                      <option value="enterprise">Enterprise</option>
+                    </select>
+                  </div>
+
                   <button
-                    key={s}
-                    type="button"
-                    onClick={() => toggleSection(s)}
-                    className={`px-2.5 py-1 rounded-full border text-[10px] font-medium transition-all ${
-                      sections.includes(s)
-                        ? "bg-ink text-cream-paper border-ink"
-                        : "bg-cream-paper text-graphite border-ink hover:bg-ink/5"
-                    }`}
+                    onClick={handleGenerate}
+                    disabled={disabled}
+                    className="w-full h-10 text-xs font-medium bg-sunshine-highlight text-ink rounded-full hover:opacity-90 disabled:opacity-30 transition-opacity flex items-center justify-center gap-2"
                   >
-                    {s}
+                    {isPending ? (
+                      <><CircleNotch size={13} className="animate-spin" /> Generating</>
+                    ) : (
+                      <><MagnifyingGlass size={13} weight="bold" /> Generate README <ArrowRight size={11} /></>
+                    )}
                   </button>
-                ))}
-              </div>
-            </div>
 
-            <div className="space-y-2.5">
-              <label className="text-[10px] font-medium text-graphite uppercase tracking-[0.286em]">Tone</label>
-              <select
-                value={tone}
-                onChange={(e) => setTone(e.target.value as Tone)}
-                className="w-full h-9 px-3 text-xs bg-cream-paper border border-ink rounded-full text-ink outline-none focus:border-ink appearance-none cursor-pointer"
-              >
-                <option value="technical">Technical</option>
-                <option value="friendly">Friendly</option>
-                <option value="enterprise">Enterprise</option>
-              </select>
-            </div>
-
-            <button
-              onClick={() => mutation.mutate({ data: { projectUrl: tab === "url" ? url : "", description: tab === "describe" ? description : "", style, sections, tone } })}
-              disabled={disabled}
-              className="w-full h-10 text-xs font-medium bg-sunshine-highlight text-ink rounded-full hover:opacity-90 disabled:opacity-30 transition-opacity flex items-center justify-center gap-2"
-            >
-              {mutation.isPending ? (
-                <><CircleNotch size={13} className="animate-spin" /> Generating</>
-              ) : (
-                <><MagnifyingGlass size={13} weight="bold" /> Generate README <ArrowRight size={11} /></>
-              )}
-            </button>
-
-            {mutation.isError && (
-              <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="flex items-start gap-2 rounded-2xl border border-ink p-3 text-ink">
-                <Warning size={13} className="shrink-0 mt-0.5" />
-                <span className="text-xs font-medium">{(mutation.error as Error).message}</span>
-              </motion.div>
-            )}
-          </div>
-        </div>
-
-        <div className="flex-1 flex flex-col bg-cream-paper">
-          {mutation.isPending && (
-            <div className="flex items-center gap-3 px-6 py-3 border-b border-ink bg-cream-paper">
-              <div className="flex items-center gap-2 text-xs text-graphite">
-                <CircleNotch size={13} className="animate-spin text-ink" />
-                <span>Analyzing repository...</span>
-              </div>
-              <div className="flex-1 h-[2px] bg-ink/10 rounded-full overflow-hidden max-w-[200px]">
-                <motion.div className="h-full bg-ink rounded-full" initial={{ width: "0%" }} animate={{ width: "100%" }} transition={{ duration: 3, ease: "linear" }} />
-              </div>
-            </div>
-          )}
-
-          {discovery && (
-            <div className="px-6 py-3 border-b border-ink bg-cream-paper">
-              <div className="flex items-center flex-wrap gap-3">
-                <div className="flex items-center gap-2">
-                  <SealCheck size={13} className="text-mint-signal" weight="fill" />
-                  <span className="text-xs font-medium text-ink">{discovery.inferredTitle}</span>
+                  {error && (
+                    <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="flex items-start gap-2 rounded-2xl border border-ink p-3 text-ink">
+                      <Warning size={13} className="shrink-0 mt-0.5" />
+                      <span className="text-xs font-medium">{error}</span>
+                    </motion.div>
+                  )}
                 </div>
-                {discovery.detectedStack.length > 0 && (
-                  <div className="flex items-center gap-1.5">
-                    <Folder size={12} className="text-graphite" />
-                    {discovery.detectedStack.slice(0, 4).map((t) => (
-                      <span key={t} className="text-[10px] border border-ink rounded-full px-2 py-0.5 text-graphite">{t}</span>
-                    ))}
+              </div>
+
+              <div className="flex-1 flex flex-col bg-cream-paper">
+                {isPending && (
+                  <div className="flex items-center gap-3 px-6 py-3 border-b border-ink bg-cream-paper">
+                    <div className="flex items-center gap-2 text-xs text-graphite">
+                      <CircleNotch size={13} className="animate-spin text-ink" />
+                      <span>Analyzing repository...</span>
+                    </div>
+                    <div className="flex-1 h-[2px] bg-ink/10 rounded-full overflow-hidden max-w-[200px]">
+                      <motion.div className="h-full bg-ink rounded-full" initial={{ width: "0%" }} animate={{ width: "100%" }} transition={{ duration: 3, ease: "linear" }} />
+                    </div>
                   </div>
                 )}
-              </div>
-            </div>
-          )}
 
-          <div className="flex-1 flex flex-col overflow-hidden">
-            <div className="flex items-center justify-between px-6 py-2.5 border-b border-ink bg-cream-paper shrink-0">
-              <div className="flex items-center gap-2">
-                <FileCode size={13} className="text-ink" />
-                <span className="text-xs font-medium text-ink">Output</span>
-                <span className="text-[10px] font-mono text-graphite border border-ink rounded-full px-2 py-0.5">README.md</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="flex items-center border border-ink rounded-full p-0.5">
-                  {(["preview", "raw"] as const).map((v) => (
-                    <button
-                      key={v}
-                      onClick={() => setView(v)}
-                      className={`text-[10px] font-medium px-2.5 py-1 rounded-full transition-all ${
-                        view === v ? "bg-ink text-cream-paper" : "text-graphite hover:text-ink"
-                      }`}
-                    >
-                      {v === "preview" ? "Preview" : "Raw"}
-                    </button>
-                  ))}
-                </div>
-                <button onClick={onCopy} disabled={!readme} className={`h-7 text-[10px] font-medium rounded-full border px-3 flex items-center gap-1 transition-all ${
-                  copied ? "bg-mint-signal/10 text-mint-signal border-mint-signal" : "bg-cream-paper text-graphite border-ink hover:text-ink disabled:opacity-30"
-                }`}>
-                  {copied ? <><Check size={10} />Copied</> : <><Copy size={10} />Copy</>}
-                </button>
-                <button onClick={onDownload} disabled={!readme} className="h-7 text-[10px] font-medium rounded-full border border-ink bg-cream-paper text-graphite hover:text-ink disabled:opacity-30 px-3 flex items-center gap-1">
-                  <Download size={10} />Download
-                </button>
-              </div>
-            </div>
-
-            <div className="flex-1 overflow-y-auto bg-cream-paper">
-              {mutation.isPending ? (
-                <div className="p-10 space-y-4 max-w-3xl mx-auto">
-                  {[...Array(5)].map((_, i) => (
-                    <div key={i} className="space-y-2">
-                      <div className="h-4 border border-ink/20 rounded-full" style={{ width: `${30 + Math.random() * 40}%` }} />
-                      <div className="h-2.5 border border-ink/10 rounded-full w-full" />
-                      <div className="h-2.5 border border-ink/10 rounded-full" style={{ width: `${50 + Math.random() * 40}%` }} />
+                <div className="flex-1 flex flex-col overflow-hidden">
+                  <div className="flex items-center justify-between px-6 py-2.5 border-b border-ink bg-cream-paper shrink-0">
+                    <div className="flex items-center gap-2">
+                      <FileCode size={13} className="text-ink" />
+                      <span className="text-xs font-medium text-ink">Output</span>
+                      <span className="text-[10px] font-mono text-graphite border border-ink rounded-full px-2 py-0.5">README.md</span>
                     </div>
-                  ))}
-                </div>
-              ) : readme ? (
-                <div className="max-w-3xl mx-auto p-6 lg:p-10">
-                  <div className="rounded-3xl border border-ink bg-cream-paper overflow-hidden">
-                    <div className="flex items-center gap-1.5 border-b border-ink px-4 py-2.5 bg-cream-paper">
-                      <span className="w-2.5 h-2.5 rounded-full border border-ink" />
-                      <span className="w-2.5 h-2.5 rounded-full border border-ink" />
-                      <span className="w-2.5 h-2.5 rounded-full border border-ink" />
-                      <span className="ml-3 text-[10px] text-graphite">README.md</span>
-                    </div>
-                    <div className="p-6 lg:p-10">
-                      {view === "preview" ? <MarkdownRender text={readme} /> : (
-                        <pre className="whitespace-pre-wrap font-mono text-sm text-ink leading-relaxed overflow-x-auto">{readme}</pre>
-                      )}
+                    <div className="flex items-center gap-2">
+                      <div className="flex items-center border border-ink rounded-full p-0.5">
+                        {(["preview", "raw"] as const).map((v) => (
+                          <button
+                            key={v}
+                            onClick={() => setView(v)}
+                            className={`text-[10px] font-medium px-2.5 py-1 rounded-full transition-all ${
+                              view === v ? "bg-ink text-cream-paper" : "text-graphite hover:text-ink"
+                            }`}
+                          >
+                            {v === "preview" ? "Preview" : "Raw"}
+                          </button>
+                        ))}
+                      </div>
+                      <button onClick={onCopy} disabled={!readme} className={`h-7 text-[10px] font-medium rounded-full border px-3 flex items-center gap-1 transition-all ${
+                        copied ? "bg-mint-signal/10 text-mint-signal border-mint-signal" : "bg-cream-paper text-graphite border-ink hover:text-ink disabled:opacity-30"
+                      }`}>
+                        {copied ? <><Check size={10} />Copied</> : <><Copy size={10} />Copy</>}
+                      </button>
+                      <button onClick={onDownload} disabled={!readme} className="h-7 text-[10px] font-medium rounded-full border border-ink bg-cream-paper text-graphite hover:text-ink disabled:opacity-30 px-3 flex items-center gap-1">
+                        <Download size={10} />Download
+                      </button>
                     </div>
                   </div>
+
+                  <div className="flex-1 overflow-y-auto bg-cream-paper">
+                    {isPending ? (
+                      <div className="p-10 space-y-4 max-w-3xl mx-auto">
+                        {[...Array(5)].map((_, i) => (
+                          <div key={i} className="space-y-2">
+                            <div className="h-4 border border-ink/20 rounded-full" style={{ width: `${30 + Math.random() * 40}%` }} />
+                            <div className="h-2.5 border border-ink/10 rounded-full w-full" />
+                            <div className="h-2.5 border border-ink/10 rounded-full" style={{ width: `${50 + Math.random() * 40}%` }} />
+                          </div>
+                        ))}
+                      </div>
+                    ) : readme ? (
+                      <div className="max-w-3xl mx-auto p-6 lg:p-10">
+                        <div className="rounded-3xl border border-ink bg-cream-paper overflow-hidden">
+                          <div className="flex items-center gap-1.5 border-b border-ink px-4 py-2.5 bg-cream-paper">
+                            <span className="w-2.5 h-2.5 rounded-full border border-ink" />
+                            <span className="w-2.5 h-2.5 rounded-full border border-ink" />
+                            <span className="w-2.5 h-2.5 rounded-full border border-ink" />
+                            <span className="ml-3 text-[10px] text-graphite">README.md</span>
+                          </div>
+                          <div className="p-6 lg:p-10">
+                            {view === "preview" ? <MarkdownRender text={readme} /> : (
+                              <pre className="whitespace-pre-wrap font-mono text-sm text-ink leading-relaxed overflow-x-auto">{readme}</pre>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="h-full flex flex-col items-center justify-center text-center px-6">
+                        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
+                          <div className="w-12 h-12 rounded-3xl border border-ink bg-cream-paper flex items-center justify-center mb-4 mx-auto">
+                            <FileCode size={20} className="text-ink" />
+                          </div>
+                          <h3 className="text-base font-medium text-ink">Ready to Generate</h3>
+                          <p className="mt-1.5 text-xs text-graphite max-w-xs leading-relaxed mx-auto">
+                            Configure your options in the sidebar, then click generate.
+                          </p>
+                        </motion.div>
+                      </div>
+                    )}
+                  </div>
                 </div>
-              ) : (
-                <div className="h-full flex flex-col items-center justify-center text-center px-6">
-                  <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
-                    <div className="w-12 h-12 rounded-3xl border border-ink bg-cream-paper flex items-center justify-center mb-4 mx-auto">
-                      <FileCode size={20} className="text-ink" />
-                    </div>
-                    <h3 className="text-base font-medium text-ink">Ready to Generate</h3>
-                    <p className="mt-1.5 text-xs text-graphite max-w-xs leading-relaxed mx-auto">
-                      Configure your options in the sidebar, then click generate.
-                    </p>
-                  </motion.div>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
     </div>
   );
