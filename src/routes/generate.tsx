@@ -276,58 +276,64 @@ function AuthenticatedApp({ user, onSignOut }: { user: any; onSignOut: () => voi
                     )}
                   </div>
 
-                  <div className="space-y-2">
+                  <div className="space-y-1.5">
                     <label className="text-[10px] font-medium text-graphite uppercase tracking-[0.286em]">Style</label>
-                    <div className="grid grid-cols-3 gap-1.5">
+                    <div className="space-y-1">
                       {(["minimal", "standard", "comprehensive"] as Style[]).map((s) => (
                         <button
                           key={s}
                           type="button"
                           onClick={() => setStyle(s)}
-                          className={`rounded-xl border px-2.5 py-2 text-left transition-all ${
+                          className={`w-full flex items-center gap-2.5 rounded-xl border px-3 py-2 text-left transition-all ${
                             style === s
                               ? "bg-ink text-cream-paper border-ink"
                               : "bg-cream-paper text-graphite border-ink hover:bg-ink/5"
                           }`}
                         >
-                          <span className="text-[11px] font-medium capitalize block leading-tight">{s}</span>
-                          <span className={`text-[9px] leading-tight mt-0.5 block ${
-                            style === s ? "text-cream-paper/70" : "text-graphite"
-                          }`}>
-                            {STYLE_META[s].desc}
-                          </span>
+                          <span className={`w-2 h-2 rounded-full border shrink-0 ${
+                            style === s ? "border-cream-paper bg-cream-paper" : "border-graphite"
+                          }`} />
+                          <div className="min-w-0">
+                            <span className="text-xs font-medium capitalize block truncate">{s}</span>
+                            <span className={`text-[10px] block truncate ${
+                              style === s ? "text-cream-paper/70" : "text-graphite"
+                            }`}>{STYLE_META[s].desc}</span>
+                          </div>
                         </button>
                       ))}
                     </div>
                   </div>
 
-                  <div className="space-y-2">
+                  <div className="space-y-1.5">
                     <label className="text-[10px] font-medium text-graphite uppercase tracking-[0.286em]">
                       Sections
                     </label>
                     <SectionPicker selected={sections} onChange={setSections} />
                   </div>
 
-                  <div className="space-y-2">
+                  <div className="space-y-1.5">
                     <label className="text-[10px] font-medium text-graphite uppercase tracking-[0.286em]">Tone</label>
-                    <div className="flex gap-1.5">
+                    <div className="space-y-1">
                       {TONE_OPTIONS.map((o) => (
                         <button
                           key={o.value}
                           type="button"
                           onClick={() => setTone(o.value)}
-                          className={`flex-1 rounded-xl border px-2.5 py-2 text-left transition-all ${
+                          className={`w-full flex items-center gap-2.5 rounded-xl border px-3 py-2 text-left transition-all ${
                             tone === o.value
                               ? "bg-ink text-cream-paper border-ink"
                               : "bg-cream-paper text-graphite border-ink hover:bg-ink/5"
                           }`}
                         >
-                          <span className="text-[11px] font-medium block leading-tight">{o.label}</span>
-                          <span className={`text-[9px] leading-tight mt-0.5 block ${
-                            tone === o.value ? "text-cream-paper/70" : "text-graphite"
-                          }`}>
-                            {o.desc}
-                          </span>
+                          <span className={`w-2 h-2 rounded-full border shrink-0 ${
+                            tone === o.value ? "border-cream-paper bg-cream-paper" : "border-graphite"
+                          }`} />
+                          <div className="min-w-0">
+                            <span className="text-xs font-medium block truncate">{o.label}</span>
+                            <span className={`text-[10px] block truncate ${
+                              tone === o.value ? "text-cream-paper/70" : "text-graphite"
+                            }`}>{o.desc}</span>
+                          </div>
                         </button>
                       ))}
                     </div>
