@@ -1,5 +1,4 @@
 import { createServerFn } from "@tanstack/react-start";
-import { getRequestHeader } from "@tanstack/react-start/server";
 import { z } from "zod";
 
 import { generateReadme } from "./readme.functions";
@@ -7,6 +6,7 @@ import { verifyFirebaseToken, hasPromptInjection, sanitizeOutput } from "./fireb
 import { checkRateLimit, decrementCount, getUsage } from "./rate-limit.server";
 
 const Input = z.object({
+  _token: z.string(),
   projectUrl: z.string().optional().default(""),
   description: z.string().optional().default(""),
   style: z.enum(["minimal", "standard", "comprehensive"]).default("standard"),
@@ -17,21 +17,17 @@ const Input = z.object({
 export const generateSecure = createServerFn({ method: "POST" })
   .validator((input: unknown) => Input.parse(input))
   .handler(async ({ data }) => {
-    const authHeader = getRequestHeader("Authorization");
-    if (!authHeader || !authHeader.startsWith("Bearer ")) {
-      throw new Error("Unauthorized");
-    }
+    const { _token, ...input } = data;
 
-    const idToken = authHeader.slice(7);
     let uid: string;
     try {
-      uid = await verifyFirebaseToken(idToken);
+      uid = await verifyFirebaseToken(_token);
     } catch {
       throw new Error("Unauthorized");
     }
 
-    const desc = data.description || "";
-    const url = data.projectUrl || "";
+    const desc = input.description || "";
+    const url = input.projectUrl || "";
     if (!url && !desc) {
       throw new Error("Provide a GitHub URL or a project description.");
     }
@@ -49,7 +45,7 @@ export const generateSecure = createServerFn({ method: "POST" })
     }
 
     try {
-      const result = await generateReadme({ data });
+      const result = await generateReadme({ data: input });
 
       const sanitized = sanitizeOutput(result.readme);
 

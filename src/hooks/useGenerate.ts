@@ -45,6 +45,7 @@ export function useGenerate() {
 
       const result = await (fn as any)({
         data: {
+          _token: token,
           projectUrl: input.projectUrl || "",
           description: input.description || "",
           style: input.style || "standard",
