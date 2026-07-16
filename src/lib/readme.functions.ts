@@ -177,7 +177,6 @@ export const generateReadme = createServerFn({ method: "POST" })
         repoInfo.packageJsonRaw = pkgText;
         const parsed = parsePackageJson(pkgText);
         if (parsed) {
-          repoInfo.title = parsed.name || repoInfo.title;
           repoInfo.description = parsed.description || "";
           repoInfo.version = parsed.version;
           repoInfo.dependencies = parsed.dependencies;
@@ -238,7 +237,7 @@ export const generateReadme = createServerFn({ method: "POST" })
       databaseModels: hasDatabase ? Math.max(Math.floor(scannedFilesCount * 0.3), 1) : 0,
     };
 
-    // Build the prompt with only real data — strict anti-hallucination
+    // Build context with all scanned data for deep AI analysis
     const contextParts: string[] = [];
 
     if (repo) {
@@ -269,21 +268,24 @@ export const generateReadme = createServerFn({ method: "POST" })
       contextParts.push(`TypeScript config — target: ${tsconfigTarget || "not set"}, jsx: ${tsconfigJsx || "not set"}`);
     }
     if (entryText) {
-      contextParts.push(`Entry point content (first 1000 chars):\n${entryText!.slice(0, 1000)}`);
+      contextParts.push(`Entry point source code:\n\`\`\`\n${entryText!.slice(0, 2000)}\n\`\`\``);
+    }
+    if (repoInfo.packageJsonRaw) {
+      contextParts.push(`package.json:\n\`\`\`json\n${repoInfo.packageJsonRaw}\n\`\`\``);
     }
     if (repoInfo.existingReadme) {
-      contextParts.push(`\nExisting README content (for reference only):\n${repoInfo.existingReadme}`);
+      contextParts.push(`Existing README (for reference):\n${repoInfo.existingReadme}`);
     }
     if (data.description && !repo) {
-      contextParts.push(`\nUser-provided project description:\n${data.description}`);
+      contextParts.push(`User-provided project description:\n${data.description}`);
     }
 
-    const contextBlock = contextParts.join("\n");
+    const contextBlock = contextParts.join("\n\n");
 
     const styleGuides = {
       minimal: "Short and punchy. One-liner per section. No fluff.",
       standard: "Balanced. Clear sections with 2-3 sentences each. Good for most projects.",
-      comprehensive: "Detailed. Include code examples, explanations, and thorough coverage. Production quality.",
+      comprehensive: "Detailed. Include code examples, technical explanations, and thorough coverage. Production quality.",
     };
 
     const toneGuides = {
@@ -294,14 +296,28 @@ export const generateReadme = createServerFn({ method: "POST" })
 
     const prompt = `You are a senior technical writer generating a README.md for an open-source project.
 
-ABSOLUTE RULES — READ CAREFULLY:
-- You MUST ONLY use the facts provided below under "CONTEXT". Do NOT invent technologies, dependencies, features, or any details.
-- If the context says nothing about a required section, write "Not specified" or omit that detail.
-- Do NOT add databases, authentication systems, deployment platforms, or testing frameworks unless explicitly listed in the dependencies below.
-- Do NOT add badges or shields for services not confirmed in the context.
-- Do NOT add screenshot placeholders or image links unless the existing README contains them.
-- Do NOT fabricate package names, commands, or scripts.
-- If no tech stack is detected, omit the Tech Stack section entirely.
+ANALYSIS INSTRUCTIONS:
+Analyze the provided CONTEXT deeply and extract real information for every section. You have access to:
+- The package.json (dependencies, scripts, metadata)
+- Entry point source code (imports, component structure, routing)
+- Tech stack detection
+- TypeScript configuration
+- HTML metadata
+
+For each section, DERIVE real content from this data:
+- **Folder Structure**: Derive a logical project tree from the dependencies, entry point imports, and config files. Show where source, components, styles, configs live.
+- **Tech Stack**: List every detected technology with a brief explanation of what it's used for (e.g., "React — UI components", "React Router — client-side routing").
+- **Features**: Extract from the dependencies and source code what the project likely offers (e.g., React Router → routing, Framer Motion → animations, TanStack Query → data fetching).
+- **Architecture**: Describe the project architecture based on the tech stack (SPA with React, Vite build system, component structure, routing approach).
+- **Installation**: Provide npm/yarn install based on the package manager hint in lockfile.
+- **Usage**: Describe how to run the project (dev server, build, preview) based on package.json scripts.
+- **Performance, Security, Testing, Deployment**: Infer reasonable best practices based on the tech stack (e.g., Vite for fast builds, TypeScript for type safety).
+- **Every section**: MUST have real, meaningful content. Never write "not specified" or "no information available".
+
+RULES:
+- Base everything on the CONTEXT below. You may REASON from the data but do not fabricate technologies not listed.
+- Do NOT add badges, image placeholders, or screenshot links unless the existing README contains them.
+- If the existing README is provided, you may REFERENCE it but produce fresh improved content.
 
 CONTEXT:
 ${contextBlock}
@@ -336,7 +352,7 @@ ${JSON.stringify({
       const { text } = await generateText({
         model: groq(model),
         prompt,
-        temperature: 0.3,
+        temperature: 0.7,
       });
 
       const parts = text.split("---METADATA---");
