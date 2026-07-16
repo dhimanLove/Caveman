@@ -1,6 +1,6 @@
-import { ArrowRight } from "@phosphor-icons/react";
+import { ArrowRight, Warning } from "@phosphor-icons/react";
 
-export function SignInScreen({ onSignIn }: { onSignIn: () => void }) {
+export function SignInScreen({ onSignIn, error }: { onSignIn: () => void; error?: string | null }) {
   return (
     <div className="min-h-screen bg-cream-paper flex flex-col items-center justify-center px-6">
       <div className="max-w-sm w-full text-center">
@@ -18,6 +18,12 @@ export function SignInScreen({ onSignIn }: { onSignIn: () => void }) {
         >
           Continue with Google <ArrowRight size={15} weight="bold" />
         </button>
+        {error && (
+          <div className="mt-4 flex items-start gap-2 rounded-2xl border border-ink p-3 text-ink text-left">
+            <Warning size={13} className="shrink-0 mt-0.5" />
+            <span className="text-xs font-medium">{error}</span>
+          </div>
+        )}
       </div>
     </div>
   );

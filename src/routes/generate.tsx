@@ -52,7 +52,7 @@ function Segmented<T extends string>({ value, onChange, options }: { value: T; o
 }
 
 function GeneratePage() {
-  const { user, loading, signIn, signOut } = useAuth();
+  const { user, loading, error: authError, signIn, signOut } = useAuth();
 
   if (loading) {
     return (
@@ -63,7 +63,7 @@ function GeneratePage() {
   }
 
   if (!user) {
-    return <SignInScreen onSignIn={signIn} />;
+    return <SignInScreen onSignIn={signIn} error={authError} />;
   }
 
   return <AuthenticatedApp user={user} onSignOut={signOut} />;
