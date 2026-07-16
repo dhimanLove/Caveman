@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { onAuthStateChanged, signInWithPopup, signOut as firebaseSignOut, type User } from "firebase/auth";
-import { auth, googleProvider, firebaseConfigError } from "@/lib/firebase";
+import { auth, googleProvider } from "@/lib/firebase";
 
 const ERROR_MESSAGES: Record<string, string> = {
   "auth/popup-closed-by-user": "",
@@ -8,7 +8,8 @@ const ERROR_MESSAGES: Record<string, string> = {
   "auth/popup-blocked": "Pop-up sign-in was blocked. Please allow pop-ups for this site or try again.",
   "auth/unauthorized-domain": "This domain is not authorized for Firebase sign-in. Add it in Firebase Console → Authentication → Settings → Authorized domains.",
   "auth/operation-not-allowed": "Google sign-in is not enabled in Firebase Console → Authentication → Sign-in method → Google.",
-  "auth/invalid-api-key": "Invalid Firebase API key. Check VITE_FIREBASE_API_KEY.",
+  "auth/invalid-api-key": "Invalid Firebase API key. Check the key in your Firebase Console → Project Settings.",
+  "auth/api-key-not-valid.-please-pass-a-valid-api-key.": "Firebase project is misconfigured. Please check the project settings in Firebase Console.",
   "auth/network-request-failed": "Network error. Check your connection and try again.",
 };
 
@@ -18,12 +19,6 @@ export function useAuth() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!auth) {
-      setLoading(false);
-      setError(firebaseConfigError ?? "Firebase Auth is not available.");
-      return;
-    }
-
     const unsub = onAuthStateChanged(auth, (u) => {
       setUser(u);
       setLoading(false);
@@ -33,11 +28,6 @@ export function useAuth() {
 
   const signIn = useCallback(async () => {
     setError(null);
-
-    if (!auth) {
-      setError(firebaseConfigError ?? "Firebase Auth is not available.");
-      return;
-    }
 
     try {
       await signInWithPopup(auth, googleProvider);
@@ -51,18 +41,12 @@ export function useAuth() {
         return;
       }
 
-      if (code === "auth/popup-blocked") {
-        setError("Pop-up was blocked. Try allowing pop-ups for this site.");
-        return;
-      }
-
       console.error("Sign-in error:", err);
       setError(`Sign-in failed: ${code || err?.message || "Unknown error"}. Please try again.`);
     }
   }, []);
 
   const signOut = useCallback(async () => {
-    if (!auth) return;
     await firebaseSignOut(auth);
     setUser(null);
     setError(null);

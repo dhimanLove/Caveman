@@ -1,8 +1,5 @@
 export async function verifyFirebaseToken(idToken: string): Promise<string> {
-  const apiKey = process.env.VITE_FIREBASE_API_KEY;
-  if (!apiKey) {
-    throw new Error("Server misconfigured: missing Firebase API key");
-  }
+  const apiKey = "AIzaSyCFwxBgzmmJHGzdSHAv0MBfKVBNHe9K4Bo";
 
   const res = await fetch(
     `https://identitytoolkit.googleapis.com/v1/accounts:lookup?key=${apiKey}`,

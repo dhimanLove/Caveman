@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { doc, onSnapshot, getFirestore } from "firebase/firestore";
 import { app } from "@/lib/firebase";
 
-const db = app ? getFirestore(app) : null;
+const db = getFirestore(app);
 
 interface UsageState {
   count: number;
@@ -20,7 +20,7 @@ export function useUsage(uid: string | undefined) {
   });
 
   useEffect(() => {
-    if (!uid || !db) return;
+    if (!uid) return;
 
     const unsub = onSnapshot(doc(db, "usage", uid), (snap) => {
       if (!snap.exists()) {
