@@ -1,10 +1,11 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Link as LinkIcon, Warning, MagnifyingGlass,
   Check, CircleNotch, ArrowRight, Download, Copy,
-  FileCode, SignOut,
+  FileCode, SignOut, CaretDown, MagnifyingGlass as SearchIcon,
+  CaretUp, CheckSquare, Square,
 } from "@phosphor-icons/react";
 
 import { useAuth } from "@/hooks/useAuth";
@@ -31,6 +32,113 @@ const ALL_SECTIONS = [
   "Badges", "Tech Stack", "Folder Structure", "Features", "Architecture",
   "Performance", "Security", "Deployment", "Testing", "FAQ", "Changelog", "Authors",
 ];
+
+const STYLE_META: Record<Style, { desc: string }> = {
+  minimal: { desc: "Quick start, bare essentials" },
+  standard: { desc: "Balanced overview, good for most projects" },
+  comprehensive: { desc: "Deep docs, API refs, full structure" },
+};
+
+const TONE_OPTIONS = [
+  { value: "technical" as Tone, label: "Technical", desc: "Precise, developer-focused" },
+  { value: "friendly" as Tone, label: "Friendly", desc: "Approachable, conversational" },
+  { value: "enterprise" as Tone, label: "Enterprise", desc: "Formal, professional tone" },
+];
+
+function SectionPicker({ selected, onChange }: { selected: string[]; onChange: (s: string[]) => void }) {
+  const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState("");
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
+  const filtered = search
+    ? ALL_SECTIONS.filter((s) => s.toLowerCase().includes(search.toLowerCase()))
+    : ALL_SECTIONS;
+
+  const toggle = (s: string) => {
+    onChange(selected.includes(s) ? selected.filter((x) => x !== s) : [...selected, s]);
+  };
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen(!open)}
+        className="w-full h-9 px-3 text-xs bg-cream-paper border border-ink rounded-full text-ink flex items-center justify-between gap-2 hover:bg-ink/5 transition-colors"
+      >
+        <span className="truncate">
+          {selected.length === 0
+            ? "Select sections"
+            : selected.length === ALL_SECTIONS.length
+              ? "All sections"
+              : `${selected.length} section${selected.length > 1 ? "s" : ""} selected`}
+        </span>
+        {open ? <CaretUp size={10} /> : <CaretDown size={10} />}
+      </button>
+
+      {open && (
+        <motion.div
+          initial={{ opacity: 0, y: -4 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="absolute top-full mt-1 left-0 right-0 z-10 bg-cream-paper border border-ink rounded-2xl shadow-lg overflow-hidden"
+        >
+          <div className="relative border-b border-ink">
+            <SearchIcon size={11} className="absolute left-3 top-1/2 -translate-y-1/2 text-graphite" />
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search sections..."
+              className="w-full h-9 pl-8 pr-3 text-xs bg-cream-paper text-ink placeholder:text-graphite outline-none"
+            />
+          </div>
+          <div className="max-h-[200px] overflow-y-auto p-1">
+            {filtered.map((s) => {
+              const active = selected.includes(s);
+              return (
+                <button
+                  key={s}
+                  type="button"
+                  onClick={() => toggle(s)}
+                  className="w-full flex items-center gap-2 px-3 py-1.5 text-xs rounded-lg hover:bg-ink/5 transition-colors text-left"
+                >
+                  {active ? (
+                    <CheckSquare size={12} className="text-ink shrink-0" weight="fill" />
+                  ) : (
+                    <Square size={12} className="text-graphite shrink-0" />
+                  )}
+                  <span className={active ? "text-ink font-medium" : "text-graphite"}>{s}</span>
+                </button>
+              );
+            })}
+            {filtered.length === 0 && (
+              <p className="px-3 py-3 text-xs text-graphite text-center">No sections found</p>
+            )}
+          </div>
+          <div className="flex items-center justify-between border-t border-ink px-3 py-1.5">
+            <button
+              type="button"
+              onClick={() => onChange(selected.length === ALL_SECTIONS.length ? [] : [...ALL_SECTIONS])}
+              className="text-[10px] font-medium text-graphite hover:text-ink transition-colors"
+            >
+              {selected.length === ALL_SECTIONS.length ? "Deselect all" : "Select all"}
+            </button>
+            <span className="text-[10px] text-graphite">
+              {selected.length}/{ALL_SECTIONS.length}
+            </span>
+          </div>
+        </motion.div>
+      )}
+    </div>
+  );
+}
 
 function Segmented<T extends string>({ value, onChange, options }: { value: T; onChange: (v: T) => void; options: { value: T; label: string }[] }) {
   return (
@@ -81,7 +189,6 @@ function AuthenticatedApp({ user, onSignOut }: { user: any; onSignOut: () => voi
 
   const { isPending, data, error, cooldownExpiry, generate } = useGenerate();
 
-  const toggleSection = (s: string) => setSections((cur) => (cur.includes(s) ? cur.filter((x) => x !== s) : [...cur, s]));
   const readme = data?.readme ?? "";
   const disabled = isPending || (tab === "url" ? !url : !description);
   const inCooldown = cooldownExpiry > Date.now();
@@ -169,44 +276,61 @@ function AuthenticatedApp({ user, onSignOut }: { user: any; onSignOut: () => voi
                     )}
                   </div>
 
-                  <div className="space-y-2.5">
+                  <div className="space-y-2">
                     <label className="text-[10px] font-medium text-graphite uppercase tracking-[0.286em]">Style</label>
-                    <Segmented value={style} onChange={setStyle} options={["minimal", "standard", "comprehensive"].map((s) => ({ value: s as Style, label: s }))} />
-                  </div>
-
-                  <div className="space-y-2.5">
-                    <label className="text-[10px] font-medium text-graphite uppercase tracking-[0.286em]">
-                      Sections <span className="ml-1 normal-case tracking-normal text-graphite">({sections.length})</span>
-                    </label>
-                    <div className="flex flex-wrap gap-1.5">
-                      {ALL_SECTIONS.map((s) => (
+                    <div className="grid grid-cols-3 gap-1.5">
+                      {(["minimal", "standard", "comprehensive"] as Style[]).map((s) => (
                         <button
                           key={s}
                           type="button"
-                          onClick={() => toggleSection(s)}
-                          className={`px-2.5 py-1 rounded-full border text-[10px] font-medium transition-all ${
-                            sections.includes(s)
+                          onClick={() => setStyle(s)}
+                          className={`rounded-xl border px-2.5 py-2 text-left transition-all ${
+                            style === s
                               ? "bg-ink text-cream-paper border-ink"
                               : "bg-cream-paper text-graphite border-ink hover:bg-ink/5"
                           }`}
                         >
-                          {s}
+                          <span className="text-[11px] font-medium capitalize block leading-tight">{s}</span>
+                          <span className={`text-[9px] leading-tight mt-0.5 block ${
+                            style === s ? "text-cream-paper/70" : "text-graphite"
+                          }`}>
+                            {STYLE_META[s].desc}
+                          </span>
                         </button>
                       ))}
                     </div>
                   </div>
 
-                  <div className="space-y-2.5">
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-medium text-graphite uppercase tracking-[0.286em]">
+                      Sections
+                    </label>
+                    <SectionPicker selected={sections} onChange={setSections} />
+                  </div>
+
+                  <div className="space-y-2">
                     <label className="text-[10px] font-medium text-graphite uppercase tracking-[0.286em]">Tone</label>
-                    <select
-                      value={tone}
-                      onChange={(e) => setTone(e.target.value as Tone)}
-                      className="w-full h-9 px-3 text-xs bg-cream-paper border border-ink rounded-full text-ink outline-none focus:border-ink appearance-none cursor-pointer"
-                    >
-                      <option value="technical">Technical</option>
-                      <option value="friendly">Friendly</option>
-                      <option value="enterprise">Enterprise</option>
-                    </select>
+                    <div className="flex gap-1.5">
+                      {TONE_OPTIONS.map((o) => (
+                        <button
+                          key={o.value}
+                          type="button"
+                          onClick={() => setTone(o.value)}
+                          className={`flex-1 rounded-xl border px-2.5 py-2 text-left transition-all ${
+                            tone === o.value
+                              ? "bg-ink text-cream-paper border-ink"
+                              : "bg-cream-paper text-graphite border-ink hover:bg-ink/5"
+                          }`}
+                        >
+                          <span className="text-[11px] font-medium block leading-tight">{o.label}</span>
+                          <span className={`text-[9px] leading-tight mt-0.5 block ${
+                            tone === o.value ? "text-cream-paper/70" : "text-graphite"
+                          }`}>
+                            {o.desc}
+                          </span>
+                        </button>
+                      ))}
+                    </div>
                   </div>
 
                   <button
