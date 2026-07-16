@@ -55,31 +55,49 @@ function parsePackageJson(text: string) {
 
 function detectStack(allDeps: string[]): string[] {
   const stackMap: Record<string, string[]> = {
-    "React": ["react", "react-dom", "next", "remix", "gatsby", "react-router", "@tanstack/react-router"],
-    "Vue": ["vue", "nuxt", "vue-router", "pinia", "vuex"],
-    "Angular": ["@angular/core", "@angular/cli"],
-    "Svelte": ["svelte", "sveltekit"],
+    React: [
+      "react",
+      "react-dom",
+      "next",
+      "remix",
+      "gatsby",
+      "react-router",
+      "@tanstack/react-router",
+    ],
+    Vue: ["vue", "nuxt", "vue-router", "pinia", "vuex"],
+    Angular: ["@angular/core", "@angular/cli"],
+    Svelte: ["svelte", "sveltekit"],
     "Node.js": ["express", "fastify", "koa", "hapi", "nestjs", "@nestjs/core"],
-    "TypeScript": ["typescript", "ts-node", "@typescript-eslint"],
+    TypeScript: ["typescript", "ts-node", "@typescript-eslint"],
     "Tailwind CSS": ["tailwindcss", "@tailwindcss"],
-    "Prisma": ["prisma", "@prisma/client"],
-    "PostgreSQL": ["pg", "postgres", "postgresql", "sequelize", "typeorm"],
-    "MongoDB": ["mongodb", "mongoose", "mongose"],
-    "Redis": ["redis", "ioredis"],
-    "Docker": ["docker", "docker-compose"],
-    "GraphQL": ["graphql", "apollo-server", "@apollo/client", "relay"],
-    "Vite": ["vite", "@vitejs"],
+    Prisma: ["prisma", "@prisma/client"],
+    PostgreSQL: ["pg", "postgres", "postgresql", "sequelize", "typeorm"],
+    MongoDB: ["mongodb", "mongoose", "mongose"],
+    Redis: ["redis", "ioredis"],
+    Docker: ["docker", "docker-compose"],
+    GraphQL: ["graphql", "apollo-server", "@apollo/client", "relay"],
+    Vite: ["vite", "@vitejs"],
     "Next.js": ["next"],
-    "Express": ["express"],
-    "Fastify": ["fastify"],
-    "tRPC": ["@trpc", "trpc"],
-    "Zod": ["zod"],
-    "zustand": ["zustand"],
+    Express: ["express"],
+    Fastify: ["fastify"],
+    tRPC: ["@trpc", "trpc"],
+    Zod: ["zod"],
+    zustand: ["zustand"],
     "React Query": ["@tanstack/react-query"],
     "Framer Motion": ["framer-motion"],
     "shadcn/ui": ["@radix-ui", "lucide-react"],
-    "GSAP": ["gsap"],
-    "Canvas API": ["fabric", "konva", "p5", "paper", "two.js", "roughjs", "excalidraw", "roughjs", "perfect-freehand"],
+    GSAP: ["gsap"],
+    "Canvas API": [
+      "fabric",
+      "konva",
+      "p5",
+      "paper",
+      "two.js",
+      "roughjs",
+      "excalidraw",
+      "roughjs",
+      "perfect-freehand",
+    ],
   };
 
   const detected: string[] = [];
@@ -92,8 +110,21 @@ function detectStack(allDeps: string[]): string[] {
   }
 
   // Detect canvas-based apps by peer dependencies or keywords
-  const canvasKeywords = ["fabric", "konva", "p5", "paper.js", "two.js", "roughjs", "excalidraw", "perfect-freehand", "draw"];
-  if (!detected.includes("Canvas API") && canvasKeywords.some((kw) => lowerDeps.some((d) => d.includes(kw)))) {
+  const canvasKeywords = [
+    "fabric",
+    "konva",
+    "p5",
+    "paper.js",
+    "two.js",
+    "roughjs",
+    "excalidraw",
+    "perfect-freehand",
+    "draw",
+  ];
+  if (
+    !detected.includes("Canvas API") &&
+    canvasKeywords.some((kw) => lowerDeps.some((d) => d.includes(kw)))
+  ) {
     detected.push("Canvas API");
   }
 
@@ -105,7 +136,9 @@ export const generateReadme = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     const key = process.env.GENERATIVE_KEY;
     if (!key) {
-      throw new Error("Missing GENERATIVE_KEY. Add your API key to the .env file in the project root.");
+      throw new Error(
+        "Missing GENERATIVE_KEY. Add your API key to the .env file in the project root.",
+      );
     }
     if (!data.projectUrl && !data.description) {
       throw new Error("Provide a GitHub URL or a project description.");
@@ -164,14 +197,20 @@ export const generateReadme = createServerFn({ method: "POST" })
       repoInfo.title = repo.repo.replace(/[-_]/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 
       const results = await Promise.all(
-        SCAN_FILES.map((path) => fetchRepoFile(repo.owner, repo.repo, path).then((text) => ({ path, text })))
+        SCAN_FILES.map((path) =>
+          fetchRepoFile(repo.owner, repo.repo, path).then((text) => ({ path, text })),
+        ),
       );
 
       const pkgText = results.find((r) => r.path === "package.json")?.text ?? null;
       const readmeText = results.find((r) => r.path === "README.md")?.text ?? null;
       const indexHtml = results.find((r) => r.path === "index.html")?.text ?? null;
       const tsconfigText = results.find((r) => r.path === "tsconfig.json")?.text ?? null;
-      entryText = results.find((r) => r.path.startsWith("src/") || r.path.startsWith("app/") || r.path.startsWith("pages/"))?.text ?? null;
+      entryText =
+        results.find(
+          (r) =>
+            r.path.startsWith("src/") || r.path.startsWith("app/") || r.path.startsWith("pages/"),
+        )?.text ?? null;
 
       if (pkgText) {
         repoInfo.packageJsonRaw = pkgText;
@@ -193,7 +232,9 @@ export const generateReadme = createServerFn({ method: "POST" })
       if (indexHtml) {
         const titleMatch = indexHtml.match(/<title>([^<]*)<\/title>/i);
         if (titleMatch) htmlTitle = titleMatch[1];
-        const descMatch = indexHtml.match(/<meta\s+name=["']description["']\s+content=["']([^"']*)["']/i);
+        const descMatch = indexHtml.match(
+          /<meta\s+name=["']description["']\s+content=["']([^"']*)["']/i,
+        );
         if (descMatch) htmlDescription = descMatch[1];
       }
 
@@ -210,21 +251,28 @@ export const generateReadme = createServerFn({ method: "POST" })
       }
     }
 
-    // Use user description as fallback
-    const projectDesc = repoInfo.description || htmlDescription || data.description || "A software project";
-    const projectTitle = repoInfo.title || htmlTitle || (data.description ? data.description.split("\n")[0].replace(/^#\s*/, "").trim() : "Project");
+    const projectDesc = repoInfo.description || htmlDescription || data.description || "";
+    const projectTitle =
+      repoInfo.title ||
+      htmlTitle ||
+      (data.description ? data.description.split("\n")[0].replace(/^#\s*/, "").trim() : "Project");
 
     // Detect real stack
-    const detectedStack = repoInfo.allDeps.length > 0
-      ? detectStack(repoInfo.allDeps)
-      : [];
+    const detectedStack = repoInfo.allDeps.length > 0 ? detectStack(repoInfo.allDeps) : [];
 
     // Count scanned files for realistic discovery
     const scannedFilesCount = repo ? SCAN_FILES.length : 0;
-    const hasJsx = detectedStack.includes("React") || tsconfigJsx.toLowerCase() === "react" || tsconfigJsx.toLowerCase() === "react-jsx";
+    const hasJsx =
+      detectedStack.includes("React") ||
+      tsconfigJsx.toLowerCase() === "react" ||
+      tsconfigJsx.toLowerCase() === "react-jsx";
     const componentEstimate = hasJsx ? Math.max(Math.floor(scannedFilesCount * 1.5), 3) : 0;
-    const hasApi = detectedStack.some((s) => ["Node.js", "Express", "Fastify", "Next.js"].includes(s));
-    const hasDatabase = detectedStack.some((s) => ["PostgreSQL", "MongoDB", "Redis", "Prisma"].includes(s));
+    const hasApi = detectedStack.some((s) =>
+      ["Node.js", "Express", "Fastify", "Next.js"].includes(s),
+    );
+    const hasDatabase = detectedStack.some((s) =>
+      ["PostgreSQL", "MongoDB", "Redis", "Prisma"].includes(s),
+    );
 
     // Build discovery from real data
     const discovery = {
@@ -265,7 +313,9 @@ export const generateReadme = createServerFn({ method: "POST" })
       contextParts.push(`HTML meta description: ${htmlDescription}`);
     }
     if (tsconfigTarget || tsconfigJsx) {
-      contextParts.push(`TypeScript config — target: ${tsconfigTarget || "not set"}, jsx: ${tsconfigJsx || "not set"}`);
+      contextParts.push(
+        `TypeScript config — target: ${tsconfigTarget || "not set"}, jsx: ${tsconfigJsx || "not set"}`,
+      );
     }
     if (entryText) {
       contextParts.push(`Entry point source code:\n\`\`\`\n${entryText!.slice(0, 2000)}\n\`\`\``);
@@ -285,7 +335,8 @@ export const generateReadme = createServerFn({ method: "POST" })
     const styleGuides = {
       minimal: "Short and punchy. One-liner per section. No fluff.",
       standard: "Balanced. Clear sections with 2-3 sentences each. Good for most projects.",
-      comprehensive: "Detailed. Include code examples, technical explanations, and thorough coverage. Production quality.",
+      comprehensive:
+        "Detailed. Include code examples, technical explanations, and thorough coverage. Production quality.",
     };
 
     const toneGuides = {
@@ -303,6 +354,13 @@ Analyze the provided CONTEXT deeply and extract real information for every secti
 - Tech stack detection
 - TypeScript configuration
 - HTML metadata
+
+CRITICAL — Infer the project purpose: If no explicit description is provided, determine what this project is from its dependencies, scripts, and source code. For example:
+- Dependencies like "ai", "@ai-sdk/*", "groq" → AI/generation tool
+- Dependencies like "framer-motion", "react", "react-router" → React frontend app
+- Dependencies like "express", "trpc", "prisma" → API/backend server
+- Scripts like "dev", "build", "preview" → web application
+Be specific about what the project does in the title and description.
 
 For each section, DERIVE real content from this data:
 - **Folder Structure**: Derive a logical project tree from the dependencies, entry point imports, and config files. Show where source, components, styles, configs live.
