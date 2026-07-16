@@ -34,9 +34,9 @@ const faqJsonLd = {
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Caveman — Drag. Drop. Document." },
-      { name: "description", content: "AI-powered README generator. Paste a GitHub URL or describe your project — Caveman writes docs your users will actually read." },
-      { property: "og:title", content: "Caveman — Drag. Drop. Document." },
+      { title: "Caveman — AI-Powered README Generator" },
+      { name: "description", content: "Generate professional README files in seconds. Paste a GitHub URL or describe your project — Caveman writes docs your users will actually read." },
+      { property: "og:title", content: "Caveman — AI-Powered README Generator" },
       { property: "og:description", content: "Generate professional README files in seconds with AI." },
       { property: "og:url", content: "/" },
     ],
@@ -48,7 +48,7 @@ export const Route = createFileRoute("/")({
 
 function LandingPage() {
   return (
-    <div className="min-h-screen bg-cream-warm">
+    <div className="min-h-screen bg-cream-paper">
       <Navbar />
       <main>
         <Hero />

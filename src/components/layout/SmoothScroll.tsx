@@ -3,8 +3,8 @@ import { useEffect, type ReactNode } from "react";
 export function SmoothScroll({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (typeof window === "undefined") return;
-    const prefersReduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    if (prefersReduced) return;
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    if (window.location.pathname.startsWith("/generate")) return;
 
     let lenis: { destroy: () => void; raf: (t: number) => void } | null = null;
     let rafId = 0;

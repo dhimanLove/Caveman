@@ -1,134 +1,87 @@
 @import "tailwindcss" source(none);
 @source "../src";
 @import "tw-animate-css";
-@import "@fontsource-variable/inter";
+@import "@fontsource-variable/dm-sans";
 
 @theme {
-  --color-spruce-abyss: #00191c;
-  --color-spruce-900: #032125;
-  --color-spruce-700: #0b363b;
-  --color-spruce-500: #437278;
-  --color-spruce-mist: #354d51;
-  --color-spruce-200: #a1c2c6;
-  --color-charcoal-100: #ebebeb;
-  --color-charcoal-mist: #fafafa;
-  --color-cream-warm: #fffcf6;
-  --color-pure-white: #ffffff;
-  --color-verdant-300: #abffae;
-  --color-verdant-whisper: #eafde8;
-  --color-wave-700: #123a88;
-  --color-wave-500: #0a6de6;
-  --color-wave-frost: #e2f4ff;
-  --color-zest-700: #863d1c;
-  --color-zest-blush: #fdf0e9;
-  --color-mustard-700: #83611c;
+  --color-cream-paper: #f8f5ed;
+  --color-ink: #000000;
+  --color-graphite: #707070;
+  --color-sunshine-highlight: #ffda6e;
+  --color-mint-signal: #6ece9d;
 
-  --font-sans: "Inter Variable", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-dm-sans: "DM Sans Variable", "DM Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
 
-  --radius-sm: 2px;
   --radius-md: 6px;
-  --radius-pill: 9999px;
+  --radius-xl: 12px;
+  --radius-2xl: 16px;
+  --radius-3xl: 24px;
 
-  --shadow-glow-verdant: 0 0 0 4px #abffae;
-  --shadow-glow-white: 0 0 0 4px #ffffff;
-  --shadow-glow-spruce: 0 0 0 4px #354d51;
+  --tracking-display: -0.016em;
 }
 
-/* shadcn compatibility: minimal semantic tokens mapped to Caveman palette */
 @theme inline {
-  --color-background: var(--color-cream-warm);
-  --color-foreground: var(--color-spruce-900);
-  --color-card: var(--color-pure-white);
-  --color-card-foreground: var(--color-spruce-900);
-  --color-popover: var(--color-pure-white);
-  --color-popover-foreground: var(--color-spruce-900);
-  --color-primary: var(--color-verdant-300);
-  --color-primary-foreground: var(--color-spruce-900);
-  --color-secondary: var(--color-spruce-700);
-  --color-secondary-foreground: var(--color-pure-white);
-  --color-muted: var(--color-charcoal-mist);
-  --color-muted-foreground: var(--color-spruce-mist);
-  --color-accent: var(--color-verdant-whisper);
-  --color-accent-foreground: var(--color-spruce-900);
-  --color-destructive: #863d1c;
-  --color-destructive-foreground: #ffffff;
-  --color-border: var(--color-charcoal-100);
-  --color-input: var(--color-charcoal-100);
-  --color-ring: var(--color-verdant-300);
-  --radius: 2px;
+  --color-background: var(--color-cream-paper);
+  --color-foreground: var(--color-ink);
+  --color-card: var(--color-cream-paper);
+  --color-card-foreground: var(--color-ink);
+  --color-popover: var(--color-cream-paper);
+  --color-popover-foreground: var(--color-ink);
+  --color-primary: var(--color-sunshine-highlight);
+  --color-primary-foreground: var(--color-ink);
+  --color-secondary: var(--color-cream-paper);
+  --color-secondary-foreground: var(--color-ink);
+  --color-muted: var(--color-cream-paper);
+  --color-muted-foreground: var(--color-graphite);
+  --color-accent: var(--color-cream-paper);
+  --color-accent-foreground: var(--color-ink);
+  --color-destructive: #000000;
+  --color-destructive-foreground: var(--color-cream-paper);
+  --color-border: var(--color-ink);
+  --color-input: var(--color-ink);
+  --color-ring: var(--color-sunshine-highlight);
+  --radius: 6px;
 }
 
 @layer base {
   * {
-    border-color: var(--color-charcoal-100);
+    border-color: var(--color-ink);
   }
   html {
-    font-family: var(--font-sans);
-    font-weight: 475;
-    font-feature-settings: "ss01", "cv11";
+    font-family: var(--font-dm-sans);
+    font-weight: 400;
+    font-feature-settings: "ss03", "ss04";
     -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
     text-rendering: optimizeLegibility;
   }
   body {
-    background-color: var(--color-cream-warm);
-    color: var(--color-spruce-900);
-    font-weight: 475;
+    background-color: var(--color-cream-paper);
+    color: var(--color-ink);
+    font-weight: 400;
   }
   h1, h2, h3, h4, h5, h6 {
-    font-weight: 475;
-    letter-spacing: -0.01em;
+    font-weight: 500;
+    letter-spacing: normal;
   }
   a {
-    color: var(--color-spruce-900);
+    color: inherit;
   }
   ::selection {
-    background: var(--color-verdant-300);
-    color: var(--color-spruce-900);
+    background: var(--color-sunshine-highlight);
+    color: var(--color-ink);
   }
 }
 
-@utility btn-pill-primary {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  height: 48px;
-  padding: 0 24px;
-  border-radius: 9999px;
-  background: var(--color-verdant-300);
-  color: var(--color-spruce-900);
-  font-weight: 500;
-  font-size: 16px;
-  transition: box-shadow 200ms ease, transform 200ms ease;
-  &:hover {
-    box-shadow: var(--shadow-glow-verdant);
-  }
-  &:focus-visible {
-    outline: none;
-    box-shadow: var(--shadow-glow-verdant);
-  }
+::-webkit-scrollbar {
+  width: 6px;
 }
-
-@utility btn-pill-secondary {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  height: 48px;
-  padding: 0 24px;
-  border-radius: 9999px;
+::-webkit-scrollbar-track {
   background: transparent;
-  border: 1px solid currentColor;
-  font-weight: 475;
-  font-size: 16px;
-  transition: background 200ms ease;
-  &:hover {
-    background: rgba(255, 255, 255, 0.06);
-  }
 }
-
-@utility hairline {
-  border: 1px solid var(--color-charcoal-100);
+::-webkit-scrollbar-thumb {
+  background: var(--color-ink);
+  border-radius: 3px;
 }
 
 @keyframes marquee {
@@ -140,13 +93,30 @@
   animation: marquee 40s linear infinite;
 }
 
-@keyframes shimmer {
-  0% { background-position: -400px 0; }
-  100% { background-position: 400px 0; }
+@utility step-badge {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid var(--color-ink);
+  border-radius: 9999px;
+  overflow: hidden;
 }
-
-@utility skeleton-shimmer {
-  background: linear-gradient(90deg, #ebebeb 0%, #fafafa 50%, #ebebeb 100%);
-  background-size: 800px 100%;
-  animation: shimmer 1.6s linear infinite;
+@utility step-badge-num {
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-cream-paper);
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--color-ink);
+}
+@utility step-badge-label {
+  padding: 0 10px;
+  font-size: 14px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.286em;
+  color: var(--color-ink);
+  white-space: nowrap;
 }

@@ -1,39 +1,59 @@
-import { motion } from "framer-motion";
+import { useRef, useEffect } from "react";
+import gsap from "gsap";
+import { ScrollTrigger } from "gsap/ScrollTrigger";
+
+gsap.registerPlugin(ScrollTrigger);
 
 const quotes = [
-  { q: "Documentation used to be the last thing I did. Now it's the first. Caveman turned a chore into 90 seconds.", name: "Ana Merino", role: "Founder, plot.dev" },
-  { q: "Our OSS repo tripled its stars the month we replaced our README with Caveman's output. Same code, different first impression.", name: "Devon Park", role: "Maintainer, hyperfetch" },
+  { q: "Documentation used to be the last thing I did. Now it is the first. Caveman turned a chore into 90 seconds.", name: "Ana Merino", role: "Founder, plot.dev" },
+  { q: "Our OSS repo tripled its stars the month we replaced our README with Caveman output. Same code, different first impression.", name: "Devon Park", role: "Maintainer, hyperfetch" },
   { q: "It writes like a senior engineer with a copy editor over their shoulder. Nothing else comes close.", name: "Priya Anand", role: "Staff Engineer, Loom" },
 ];
 
 export function Testimonials() {
+  const sectionRef = useRef<HTMLElement>(null);
+  const cardsRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const ctx = gsap.context(() => {
+      const cards = cardsRef.current?.querySelectorAll(".testimonial-card");
+      if (!cards?.length) return;
+      gsap.set(cards, { opacity: 0, y: 16 });
+      ScrollTrigger.create({
+        trigger: sectionRef.current,
+        start: "top 80%",
+        once: true,
+        onEnter: () => {
+          gsap.to(cards, { opacity: 1, y: 0, duration: 0.4, stagger: 0.06, ease: "power3.out" });
+        },
+      });
+    }, sectionRef);
+    return () => ctx.revert();
+  }, []);
+
   return (
-    <section className="bg-cream-warm py-24">
+    <section ref={sectionRef} className="bg-cream-paper py-16 border-t border-ink">
       <div className="mx-auto max-w-[1200px] px-6">
-        <div className="max-w-2xl">
-          <h2 className="text-spruce-900" style={{ fontSize: "clamp(32px, 4vw, 40px)", lineHeight: 1.13, fontWeight: 475 }}>
+        <div className="max-w-xl">
+          <span className="step-badge">
+            <span className="step-badge-num">4</span>
+            <span className="step-badge-label">Happy Developers</span>
+          </span>
+          <h2 className="mt-6 text-[28px] font-medium text-ink leading-[1.25]">
             Developers who stopped procrastinating.
           </h2>
         </div>
-        <div className="mt-14 grid gap-6 md:grid-cols-3">
+        <div ref={cardsRef} className="mt-10 grid gap-6 md:grid-cols-3">
           {quotes.map((t, i) => (
-            <motion.figure
-              key={t.name}
-              initial={{ opacity: 0, y: 30 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true, margin: "-80px" }}
-              transition={{ delay: i * 0.1, duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
-              className="rounded-sm bg-pure-white hairline p-8 flex flex-col"
-              style={{ borderRadius: 2 }}
-            >
-              <blockquote className="text-spruce-900 flex-1" style={{ fontSize: 17, lineHeight: 1.5 }}>
-                “{t.q}”
+            <figure key={t.name} className="testimonial-card rounded-3xl border border-ink bg-cream-paper p-8 flex flex-col">
+              <blockquote className="text-lg text-graphite flex-1 leading-relaxed">
+                &ldquo;{t.q}&rdquo;
               </blockquote>
-              <figcaption className="mt-6 pt-6 border-t border-charcoal-100">
-                <div className="text-spruce-900" style={{ fontWeight: 500 }}>{t.name}</div>
-                <div className="text-spruce-mist" style={{ fontSize: 14 }}>{t.role}</div>
+              <figcaption className="mt-6 pt-4 border-t border-ink">
+                <div className="text-base font-medium text-ink">{t.name}</div>
+                <div className="text-sm text-graphite mt-0.5">{t.role}</div>
               </figcaption>
-            </motion.figure>
+            </figure>
           ))}
         </div>
       </div>

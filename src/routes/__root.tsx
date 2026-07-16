@@ -15,15 +15,15 @@ import { SmoothScroll } from "../components/layout/SmoothScroll";
 
 function NotFoundComponent() {
   return (
-    <div className="flex min-h-screen items-center justify-center bg-cream-warm px-4">
+    <div className="flex min-h-screen items-center justify-center bg-cream-paper px-4">
       <div className="max-w-md text-center">
-        <h1 className="text-7xl text-spruce-900" style={{ fontWeight: 475 }}>404</h1>
-        <h2 className="mt-4 text-xl text-spruce-900">Page not found</h2>
-        <p className="mt-2 text-sm text-spruce-mist">
-          The page you're looking for doesn't exist.
-        </p>
+        <h1 className="text-7xl font-medium text-ink">404</h1>
+        <h2 className="mt-4 text-xl font-medium text-ink">Page not found</h2>
+        <p className="mt-2 text-sm text-graphite">The page you are looking for does not exist.</p>
         <div className="mt-6">
-          <Link to="/" className="btn-pill-primary">Go home</Link>
+          <Link to="/" className="inline-flex items-center justify-center h-11 px-6 rounded-full bg-sunshine-highlight text-ink text-sm font-medium hover:opacity-90 transition-opacity">
+            Go home
+          </Link>
         </div>
       </div>
     </div>
@@ -38,18 +38,20 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
   }, [error]);
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-cream-warm px-4">
+    <div className="flex min-h-screen items-center justify-center bg-cream-paper px-4">
       <div className="max-w-md text-center">
-        <h1 className="text-xl text-spruce-900">This page didn't load</h1>
-        <p className="mt-2 text-sm text-spruce-mist">Something went wrong on our end.</p>
+        <h1 className="text-xl font-medium text-ink">This page did not load</h1>
+        <p className="mt-2 text-sm text-graphite">Something went wrong on our end.</p>
         <div className="mt-6 flex justify-center gap-2">
           <button
             onClick={() => { router.invalidate(); reset(); }}
-            className="btn-pill-primary"
+            className="inline-flex items-center justify-center h-11 px-6 rounded-full bg-sunshine-highlight text-ink text-sm font-medium hover:opacity-90 transition-opacity"
           >
             Try again
           </button>
-          <a href="/" className="btn-pill-secondary text-spruce-900">Go home</a>
+          <a href="/" className="inline-flex items-center justify-center h-11 px-6 rounded-full border border-ink text-ink text-sm font-medium hover:bg-ink hover:text-cream-paper transition-colors">
+            Go home
+          </a>
         </div>
       </div>
     </div>
@@ -71,23 +73,19 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Caveman — AI README Generator for Developers" },
+      { title: "Caveman — AI-Powered README Generator" },
       {
         name: "description",
-        content:
-          "Generate professional, structured README files in seconds. Paste your GitHub URL or describe your project — Caveman writes docs your users will actually read.",
+        content: "Generate professional, structured README files in seconds. Paste your GitHub URL or describe your project — Caveman writes docs your users will actually read.",
       },
       { name: "author", content: "Caveman" },
-      { property: "og:title", content: "Caveman — AI README Generator for Developers" },
+      { property: "og:title", content: "Caveman — AI-Powered README Generator" },
       {
         property: "og:description",
         content: "Stop procrastinating on documentation. Paste your repo URL and get a polished README in seconds.",
       },
       { property: "og:type", content: "website" },
       { property: "og:site_name", content: "Caveman" },
-      { name: "twitter:card", content: "summary_large_image" },
-      { name: "twitter:title", content: "Caveman — AI README Generator" },
-      { name: "twitter:description", content: "Generate professional README files in seconds with AI." },
     ],
     links: [
       { rel: "stylesheet", href: appCss },

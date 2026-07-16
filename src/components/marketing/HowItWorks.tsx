@@ -1,69 +1,64 @@
-import { motion } from "framer-motion";
+import { useRef, useEffect } from "react";
 import { GithubLogo, Brain, FileArrowDown } from "@phosphor-icons/react";
-import { useEffect, useRef } from "react";
+import gsap from "gsap";
+import { ScrollTrigger } from "gsap/ScrollTrigger";
+
+gsap.registerPlugin(ScrollTrigger);
 
 const steps = [
-  { n: "01", title: "Drop your repo URL", body: "Paste a GitHub URL or describe your project in a sentence. We handle both public and private repos.", Icon: GithubLogo },
-  { n: "02", title: "Caveman thinks", body: "Our model reads your code, understands the stack, and drafts a README tailored to how your users will use it.", Icon: Brain, pulse: true },
-  { n: "03", title: "Download your README", body: "Copy to clipboard or download as README.md. Commit and push — you're done in 90 seconds flat.", Icon: FileArrowDown },
+  { n: "1", title: "Drop your repo URL", body: "Paste a GitHub URL or describe your project in a sentence. We handle both public and private repositories with full context extraction.", Icon: GithubLogo, label: "Easy Start" },
+  { n: "2", title: "Caveman analyzes", body: "Our model reads your code, understands the stack, and drafts a README tailored to how your users will actually use the project.", Icon: Brain, label: "Instant Output" },
+  { n: "3", title: "Download & ship", body: "Copy to clipboard or download as README.md. Commit and push. You are done in 90 seconds flat.", Icon: FileArrowDown, label: "Ship It" },
 ];
 
 export function HowItWorks() {
-  const brainRef = useRef<HTMLSpanElement>(null);
+  const sectionRef = useRef<HTMLElement>(null);
+  const cardsRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (typeof window === "undefined") return;
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-    (async () => {
-      const anime = await import("animejs");
-      const animate = (anime as unknown as { animate: (t: unknown, o: unknown) => unknown }).animate;
-      if (brainRef.current) {
-        animate(brainRef.current, {
-          scale: [1, 1.08, 1],
-          duration: 1800,
-          loop: true,
-          easing: "easeInOutSine",
-        });
-      }
-    })();
+    const ctx = gsap.context(() => {
+      const cards = cardsRef.current?.querySelectorAll(".how-card");
+      if (!cards?.length) return;
+      gsap.set(cards, { opacity: 0, y: 24 });
+      ScrollTrigger.create({
+        trigger: sectionRef.current,
+        start: "top 80%",
+        once: true,
+        onEnter: () => {
+          gsap.to(cards, { opacity: 1, y: 0, duration: 0.6, stagger: 0.1, ease: "power4.out" });
+        },
+      });
+    }, sectionRef);
+    return () => ctx.revert();
   }, []);
 
   return (
-    <section id="how" className="bg-cream-warm py-24">
+    <section id="how" ref={sectionRef} className="bg-cream-paper py-16 border-t border-ink">
       <div className="mx-auto max-w-[1200px] px-6">
-        <div className="max-w-2xl">
-          <span className="rounded-sm px-3 py-1" style={{ background: "#eafde8", color: "#032125", fontSize: 12, borderRadius: 2 }}>
-            How it works
+        <div className="max-w-xl">
+          <span className="step-badge">
+            <span className="step-badge-num">3</span>
+            <span className="step-badge-label">How It Works</span>
           </span>
-          <h2 className="mt-4 text-spruce-900" style={{ fontSize: "clamp(32px, 4vw, 40px)", lineHeight: 1.13, fontWeight: 475 }}>
-            Three steps to <span style={{ color: "#863d1c" }}>perfect</span> documentation
+          <h2 className="mt-6 text-[28px] font-medium text-ink leading-[1.25]">
+            Three steps to perfect documentation
           </h2>
         </div>
 
-        <div className="mt-14 grid gap-6 md:grid-cols-3">
-          {steps.map((s, i) => {
-            const iconEl = <s.Icon size={28} weight="regular" />;
-            return (
-              <motion.div
-                key={s.n}
-                initial={{ opacity: 0, y: 40 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true, margin: "-80px" }}
-                transition={{ delay: i * 0.12, duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
-                className="rounded-sm bg-pure-white hairline p-8"
-                style={{ borderRadius: 2 }}
-              >
-                <span className="rounded-sm px-2 py-1" style={{ background: "#fdf0e9", color: "#83611c", fontSize: 11, borderRadius: 2, fontWeight: 500 }}>
-                  Step {s.n}
-                </span>
-                <div className="mt-6 text-spruce-900">
-                  {s.pulse ? <span ref={brainRef} className="inline-block">{iconEl}</span> : iconEl}
-                </div>
-                <h3 className="mt-4 text-spruce-900" style={{ fontSize: 24, lineHeight: 1.13, fontWeight: 475 }}>{s.title}</h3>
-                <p className="mt-3 text-spruce-mist" style={{ fontSize: 16, lineHeight: 1.38 }}>{s.body}</p>
-              </motion.div>
-            );
-          })}
+        <div ref={cardsRef} className="mt-10 grid gap-6 md:grid-cols-3">
+          {steps.map((s, i) => (
+            <div key={s.n} className="how-card rounded-3xl border border-ink bg-cream-paper p-8">
+              <span className="step-badge text-[11px]">
+                <span className="step-badge-num text-[11px]" style={{ width: 20, height: 20, fontSize: 11 }}>{s.n}</span>
+                <span className="step-badge-label text-[11px]" style={{ padding: "0 8px", letterSpacing: "0.2em" }}>{s.label}</span>
+              </span>
+              <div className="mt-5">
+                <s.Icon size={20} className="text-ink" weight="regular" />
+              </div>
+              <h3 className="mt-4 text-2xl font-medium text-ink">{s.title}</h3>
+              <p className="mt-2 text-lg text-graphite leading-relaxed">{s.body}</p>
+            </div>
+          ))}
         </div>
       </div>
     </section>

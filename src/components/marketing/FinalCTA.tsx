@@ -1,36 +1,33 @@
-import { CheckCircle } from "@phosphor-icons/react";
+import { ArrowRight } from "@phosphor-icons/react";
 import { Link } from "@tanstack/react-router";
 import { motion } from "framer-motion";
 
 export function FinalCTA() {
   return (
-    <section className="bg-spruce-900 py-24">
-      <div className="mx-auto max-w-[900px] px-6 text-center">
+    <section className="bg-cream-paper py-16 border-t border-ink">
+      <div className="mx-auto max-w-[800px] px-6 text-center">
+        <div className="w-12 h-12 rounded-xl border border-ink bg-cream-paper flex items-center justify-center mx-auto">
+          <span className="text-lg font-medium text-ink">C</span>
+        </div>
         <motion.h2
-          initial={{ opacity: 0, y: 20 }}
+          initial={{ opacity: 0, y: 12 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
-          transition={{ duration: 0.6 }}
-          className="text-pure-white"
-          style={{ fontSize: "clamp(32px, 5vw, 56px)", lineHeight: 1.1, fontWeight: 475 }}
+          transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+          className="mt-6 text-[clamp(32px,5vw,64px)] font-medium text-ink leading-[1.25] tracking-[var(--tracking-display)]"
         >
-          Your project deserves <span style={{ color: "#abffae" }}>better docs</span>.
+          Ready for better docs?
         </motion.h2>
-        <p className="mt-6 text-spruce-200 mx-auto max-w-2xl" style={{ fontSize: 20, lineHeight: 1.38 }}>
-          Join developers who stopped procrastinating on documentation.
+        <p className="mt-2 text-lg text-graphite max-w-md mx-auto leading-relaxed">
+          Join thousands of developers who stopped procrastinating on documentation.
         </p>
-        <div className="mt-8 flex justify-center">
-          <Link to="/generate" className="btn-pill-primary" style={{ height: 56, padding: "0 32px", fontSize: 18 }}>
-            Generate your README free →
+        <div className="mt-8">
+          <Link
+            to="/generate"
+            className="inline-flex items-center justify-center h-12 px-8 rounded-full bg-sunshine-highlight text-ink text-sm font-medium hover:opacity-90 transition-opacity gap-2"
+          >
+            Generate Your README Free <ArrowRight size={16} weight="bold" />
           </Link>
-        </div>
-        <div className="mt-6 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-spruce-200" style={{ fontSize: 13 }}>
-          {["No account needed", "No signup required", "Free to use"].map((t) => (
-            <span key={t} className="inline-flex items-center gap-1.5">
-              <CheckCircle size={16} weight="fill" style={{ color: "#abffae" }} />
-              {t}
-            </span>
-          ))}
         </div>
       </div>
     </section>
