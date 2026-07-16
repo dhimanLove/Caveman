@@ -1,5 +1,7 @@
+# Dependency Directories
 node_modules/
 
+# Build & Output Directories
 dist/
 dist-ssr/
 build/
@@ -13,11 +15,12 @@ coverage/
 .cache/
 .parcel-cache/
 .eslintcache
-*.tsbuildinfo
 .vite/
 .vinxi/
-.tanstack/**
+.tanstack/
+*.tsbuildinfo
 
+# Logs
 logs/
 *.log
 npm-debug.log*
@@ -25,7 +28,9 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
+firebase-debug.log
 
+# Environment & Local Secrets
 .env
 .env.*
 !.env.example
@@ -33,10 +38,11 @@ lerna-debug.log*
 *.local
 .envrc
 
-firebase-debug.log
+# Local Databases & Tooling
 .supabase/
 .wrangler/
 
+# IDEs & Editor Configurations
 .vscode/*
 !.vscode/extensions.json
 .idea/
@@ -47,14 +53,17 @@ firebase-debug.log
 *.sw?
 *.code-workspace
 
+# System Files
 .DS_Store
 Thumbs.db
 desktop.ini
 
+# Temporary Files
 tmp/
 temp/
 *.tmp
 
+# Credentials, Keys, & Certificates
 *.pem
 *.key
 *.crt
