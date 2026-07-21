@@ -11,38 +11,56 @@ interface UsageState {
   cooldownEnd: number;
 }
 
+const DEFAULT_USAGE: UsageState = { count: 0, remaining: 10, windowStart: 0, cooldownEnd: 0 };
+
 export function useUsage(uid: string | undefined) {
-  const [usage, setUsage] = useState<UsageState>({
-    count: 0,
-    remaining: 10,
-    windowStart: 0,
-    cooldownEnd: 0,
-  });
+  const [usage, setUsage] = useState<UsageState>(DEFAULT_USAGE);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!uid) return;
+    if (!uid) {
+      setUsage(DEFAULT_USAGE);
+      return;
+    }
 
-    const unsub = onSnapshot(doc(db, "usage", uid), (snap) => {
-      if (!snap.exists()) {
-        setUsage({ count: 0, remaining: 10, windowStart: 0, cooldownEnd: 0 });
-        return;
-      }
-      const data = snap.data() as UsageState;
-      const now = Date.now();
+    let cancelled = false;
 
-      if (data.cooldownEnd > now) {
-        setUsage({ ...data, remaining: 0 });
-      } else if (now - data.windowStart >= 24 * 60 * 60 * 1000) {
-        setUsage({ count: 0, remaining: 10, windowStart: 0, cooldownEnd: 0 });
-      } else {
-        setUsage({ ...data, remaining: Math.max(0, 10 - data.count) });
-      }
-    });
+    const unsub = onSnapshot(
+      doc(db, "usage", uid),
+      (snap) => {
+        if (cancelled) return;
+        setError(null);
 
-    return unsub;
+        if (!snap.exists()) {
+          setUsage(DEFAULT_USAGE);
+          return;
+        }
+        const data = snap.data() as UsageState;
+        const now = Date.now();
+
+        if (data.cooldownEnd > now) {
+          setUsage({ ...data, remaining: 0 });
+        } else if (now - data.windowStart >= 24 * 60 * 60 * 1000) {
+          setUsage(DEFAULT_USAGE);
+        } else {
+          setUsage({ ...data, remaining: Math.max(0, 10 - data.count) });
+        }
+      },
+      (err) => {
+        if (cancelled) return;
+        console.error("[useUsage] Firestore listener error:", err);
+        setError("Failed to load usage data");
+        // Keep last known usage state on error
+      },
+    );
+
+    return () => {
+      cancelled = true;
+      unsub();
+    };
   }, [uid]);
 
   const inCooldown = usage.cooldownEnd > Date.now();
 
-  return { ...usage, inCooldown };
+  return { ...usage, inCooldown, error };
 }

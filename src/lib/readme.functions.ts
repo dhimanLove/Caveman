@@ -22,18 +22,149 @@ function parseRepoUrl(url: string): { owner: string; repo: string } | null {
   }
 }
 
+class GitHubError extends Error {
+  constructor(message: string, public status?: number) { super(message); this.name = "GitHubError"; }
+}
+class RateLimitError extends Error {
+  constructor() { super("GitHub API rate limit exceeded. Try again later."); this.name = "RateLimitError"; }
+}
+class NetworkError extends Error {
+  constructor(cause: unknown) { super(`Network error: ${cause instanceof Error ? cause.message : "request failed"}`); this.name = "NetworkError"; }
+}
+
 async function fetchRepoFile(owner: string, repo: string, path: string): Promise<string | null> {
   const branches = ["main", "master"];
   for (const branch of branches) {
     const url = `https://raw.githubusercontent.com/${owner}/${repo}/${branch}/${path}`;
     try {
-      const res = await fetch(url, { signal: AbortSignal.timeout(5000) });
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 6000);
+      const res = await fetch(url, { signal: controller.signal });
+      clearTimeout(timeout);
+      if (res.status === 403 || res.status === 429) {
+        console.warn(`[fetchRepoFile] Rate limited fetching ${path} (${res.status})`);
+        continue;
+      }
       if (res.ok) return await res.text();
-    } catch {
+    } catch (err: unknown) {
+      if (err instanceof DOMException && err.name === "AbortError") {
+        console.warn(`[fetchRepoFile] Timeout fetching ${owner}/${repo}/${path}`);
+        continue;
+      }
+      console.warn(`[fetchRepoFile] Error fetching ${path}:`, err instanceof Error ? err.message : err);
       continue;
     }
   }
   return null;
+}
+
+type GitHubContentItem = {
+  name: string;
+  path: string;
+  type: "file" | "dir";
+  download_url: string | null;
+};
+
+async function listDir(owner: string, repo: string, path: string, branch = "main"): Promise<GitHubContentItem[]> {
+  const url = `https://api.github.com/repos/${owner}/${repo}/contents/${path}`;
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 6000);
+    const res = await fetch(url, {
+      headers: { Accept: "application/vnd.github.v3+json", "User-Agent": "caveman" },
+      signal: controller.signal,
+    });
+    clearTimeout(timeout);
+
+    if (res.status === 403 || res.status === 429) {
+      console.warn(`[listDir] Rate limited listing ${path} (${res.status})`);
+      return [];
+    }
+    if (res.status === 404) {
+      console.warn(`[listDir] Path not found: ${path}`);
+      return [];
+    }
+    if (!res.ok) {
+      console.warn(`[listDir] Unexpected status ${res.status} for ${path}`);
+      return [];
+    }
+
+    const data = await res.json();
+    if (!Array.isArray(data)) {
+      console.warn(`[listDir] Expected array but got ${typeof data} for ${path}`);
+      return [];
+    }
+    return data.map((item: any) => ({
+      name: item.name,
+      path: item.path,
+      type: item.type,
+      download_url: item.download_url,
+    }));
+  } catch (err: unknown) {
+    if (err instanceof DOMException && err.name === "AbortError") {
+      console.warn(`[listDir] Timeout listing ${owner}/${repo}/${path}`);
+      return [];
+    }
+    console.warn(`[listDir] Error listing ${path}:`, err instanceof Error ? err.message : err);
+    return [];
+  }
+}
+
+async function buildRepoTree(owner: string, repo: string, branch: string): Promise<{ tree: string; fetchedFiles: Map<string, string> }> {
+  const fetchedFiles = new Map<string, string>();
+  const treeLines: string[] = [];
+  const batchSize = 14;
+
+  const rootItems = await listDir(owner, repo, "", branch);
+
+  // Collect all root items, then recurse into every source-like directory at root
+  const allItems: GitHubContentItem[] = [...rootItems];
+  const excludeDirs = new Set(["node_modules", ".git", ".vscode", ".idea", "dist", "build", ".output", "coverage", "__pycache__"]);
+
+  for (const item of rootItems) {
+    if (item.type !== "dir") continue;
+    if (excludeDirs.has(item.name)) continue;
+    // Scan up to 2 levels deep for source directories
+    const subItems = await listDir(owner, repo, item.path, branch);
+    allItems.push(...subItems);
+    // Go one more level into subdirectories
+    for (const sub of subItems) {
+      if (sub.type !== "dir") continue;
+      if (excludeDirs.has(sub.name)) continue;
+      const deepItems = await listDir(owner, repo, sub.path, branch);
+      allItems.push(...deepItems);
+    }
+  }
+
+  // Build tree string
+  treeLines.push(`${repo}/`);
+  for (const item of allItems) {
+    const depth = item.path.split("/").length - 1;
+    const prefix = "  ".repeat(depth) + (item.type === "dir" ? "📁 " : "📄 ");
+    treeLines.push(prefix + item.name);
+  }
+
+  // Fetch important files for content analysis
+  const importantExtensions = [".ts", ".tsx", ".js", ".jsx", ".json", ".html", ".css", ".py", ".go", ".rs", ".yml", ".yaml", ".toml", ".cfg", ".ini"];
+  const filesToFetch = allItems
+    .filter((i) => i.type === "file")
+    .filter((i) => importantExtensions.some((ext) => i.name.endsWith(ext)))
+    .filter((i) => !i.name.startsWith(".") || i.name === ".env.example")
+    .slice(0, batchSize);
+
+  const results = await Promise.allSettled(
+    filesToFetch.map((f) =>
+      fetchRepoFile(owner, repo, f.path).then((text) => ({ path: f.path, text })),
+    ),
+  );
+
+  for (const r of results) {
+    if (r.status === "fulfilled" && r.value.text) {
+      fetchedFiles.set(r.value.path, r.value.text);
+    }
+  }
+
+  return { tree: treeLines.join("\n"), fetchedFiles };
 }
 
 function parsePackageJson(text: string) {
@@ -54,11 +185,12 @@ function parsePackageJson(text: string) {
 }
 
 function detectStack(allDeps: string[]): string[] {
+  const lowerDeps = allDeps.map((d) => d.toLowerCase());
+
   const stackMap: Record<string, string[]> = {
     React: [
       "react",
       "react-dom",
-      "next",
       "remix",
       "gatsby",
       "react-router",
@@ -100,12 +232,23 @@ function detectStack(allDeps: string[]): string[] {
     ],
   };
 
-  const detected: string[] = [];
-  const lowerDeps = allDeps.map((d) => d.toLowerCase());
+  const exactMatch: Record<string, string[]> = {
+    "Next.js": ["next"],
+  };
 
+  const detected: string[] = [];
+
+  // Use substring matching for most frameworks
   for (const [name, keywords] of Object.entries(stackMap)) {
     if (keywords.some((kw) => lowerDeps.some((d) => d.includes(kw.toLowerCase())))) {
       detected.push(name);
+    }
+  }
+
+  // Use exact match for frameworks prone to false positives
+  for (const [name, keywords] of Object.entries(exactMatch)) {
+    if (keywords.some((kw) => lowerDeps.some((d) => d === kw.toLowerCase() || d.startsWith(kw.toLowerCase() + "/")))) {
+      if (!detected.includes(name)) detected.push(name);
     }
   }
 
@@ -162,33 +305,8 @@ export const generateReadme = createServerFn({ method: "POST" })
     let htmlDescription = "";
     let tsconfigTarget = "";
     let tsconfigJsx = "";
-    let entryText: string | null = null;
-
-    const SCAN_FILES = [
-      "package.json",
-      "README.md",
-      "index.html",
-      "tsconfig.json",
-      "vite.config.ts",
-      "vite.config.js",
-      "next.config.js",
-      "next.config.mjs",
-      "astro.config.mjs",
-      "nuxt.config.ts",
-      "svelte.config.js",
-      "src/main.tsx",
-      "src/main.ts",
-      "src/main.jsx",
-      "src/main.js",
-      "src/App.tsx",
-      "src/App.jsx",
-      "src/index.tsx",
-      "src/index.ts",
-      "app/layout.tsx",
-      "app/layout.jsx",
-      "pages/_app.tsx",
-      "pages/_app.jsx",
-    ];
+    let repoTree = "";
+    let fetchedFiles = new Map<string, string>();
 
     const repo = parseRepoUrl(data.projectUrl);
     if (repo) {
@@ -196,22 +314,14 @@ export const generateReadme = createServerFn({ method: "POST" })
       repoInfo.repo = repo.repo;
       repoInfo.title = repo.repo.replace(/[-_]/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 
-      const results = await Promise.all(
-        SCAN_FILES.map((path) =>
-          fetchRepoFile(repo.owner, repo.repo, path).then((text) => ({ path, text })),
-        ),
-      );
+      // Deep scan: build file tree + fetch all important files
+      const branch = "main";
+      const scan = await buildRepoTree(repo.owner, repo.repo, branch);
+      repoTree = scan.tree;
+      fetchedFiles = scan.fetchedFiles;
 
-      const pkgText = results.find((r) => r.path === "package.json")?.text ?? null;
-      const readmeText = results.find((r) => r.path === "README.md")?.text ?? null;
-      const indexHtml = results.find((r) => r.path === "index.html")?.text ?? null;
-      const tsconfigText = results.find((r) => r.path === "tsconfig.json")?.text ?? null;
-      entryText =
-        results.find(
-          (r) =>
-            r.path.startsWith("src/") || r.path.startsWith("app/") || r.path.startsWith("pages/"),
-        )?.text ?? null;
-
+      // Parse package.json if found
+      const pkgText = fetchedFiles.get("package.json") ?? null;
       if (pkgText) {
         repoInfo.packageJsonRaw = pkgText;
         const parsed = parsePackageJson(pkgText);
@@ -224,11 +334,14 @@ export const generateReadme = createServerFn({ method: "POST" })
         }
       }
 
+      // Check for existing README
+      const readmeText = fetchedFiles.get("README.md") ?? null;
       if (readmeText) {
         repoInfo.existingReadme = readmeText.slice(0, 3000);
       }
 
-      // Parse index.html for title and description
+      // Parse index.html
+      const indexHtml = fetchedFiles.get("index.html") ?? null;
       if (indexHtml) {
         const titleMatch = indexHtml.match(/<title>([^<]*)<\/title>/i);
         if (titleMatch) htmlTitle = titleMatch[1];
@@ -238,7 +351,8 @@ export const generateReadme = createServerFn({ method: "POST" })
         if (descMatch) htmlDescription = descMatch[1];
       }
 
-      // Parse tsconfig.json for framework hints
+      // Parse tsconfig.json
+      const tsconfigText = fetchedFiles.get("tsconfig.json") ?? null;
       if (tsconfigText) {
         try {
           const tsconfig = JSON.parse(tsconfigText);
@@ -260,13 +374,14 @@ export const generateReadme = createServerFn({ method: "POST" })
     // Detect real stack
     const detectedStack = repoInfo.allDeps.length > 0 ? detectStack(repoInfo.allDeps) : [];
 
-    // Count scanned files for realistic discovery
-    const scannedFilesCount = repo ? SCAN_FILES.length : 0;
+    // Build discovery from real data
     const hasJsx =
       detectedStack.includes("React") ||
       tsconfigJsx.toLowerCase() === "react" ||
       tsconfigJsx.toLowerCase() === "react-jsx";
-    const componentEstimate = hasJsx ? Math.max(Math.floor(scannedFilesCount * 1.5), 3) : 0;
+    const allSourceFiles = Array.from(fetchedFiles.keys());
+    const sourceFileCount = allSourceFiles.length;
+    const componentEstimate = hasJsx ? Math.max(Math.floor(sourceFileCount * 0.6), 3) : 0;
     const hasApi = detectedStack.some((s) =>
       ["Node.js", "Express", "Fastify", "Next.js"].includes(s),
     );
@@ -274,15 +389,14 @@ export const generateReadme = createServerFn({ method: "POST" })
       ["PostgreSQL", "MongoDB", "Redis", "Prisma"].includes(s),
     );
 
-    // Build discovery from real data
     const discovery = {
       inferredTitle: projectTitle,
       inferredDescription: projectDesc,
       detectedStack: detectedStack.length > 0 ? detectedStack.slice(0, 10) : [],
-      fileCount: scannedFilesCount,
+      fileCount: sourceFileCount,
       componentCount: componentEstimate,
-      apiRoutes: hasApi ? Math.max(Math.floor(scannedFilesCount * 0.4), 1) : 0,
-      databaseModels: hasDatabase ? Math.max(Math.floor(scannedFilesCount * 0.3), 1) : 0,
+      apiRoutes: hasApi ? Math.max(Math.floor(sourceFileCount * 0.3), 1) : 0,
+      databaseModels: hasDatabase ? Math.max(Math.floor(sourceFileCount * 0.2), 1) : 0,
     };
 
     // Build context with all scanned data for deep AI analysis
@@ -290,6 +404,7 @@ export const generateReadme = createServerFn({ method: "POST" })
 
     if (repo) {
       contextParts.push(`GitHub repository: ${repo.owner}/${repo.repo}`);
+      contextParts.push(`Clone URL: https://github.com/${repo.owner}/${repo.repo}.git`);
     }
     if (projectTitle) {
       contextParts.push(`Project name: ${projectTitle}`);
@@ -317,9 +432,45 @@ export const generateReadme = createServerFn({ method: "POST" })
         `TypeScript config — target: ${tsconfigTarget || "not set"}, jsx: ${tsconfigJsx || "not set"}`,
       );
     }
-    if (entryText) {
-      contextParts.push(`Entry point source code:\n\`\`\`\n${entryText!.slice(0, 2000)}\n\`\`\``);
+
+    // Include the full repo file tree for structure understanding
+    if (repoTree) {
+      contextParts.push(`Repository file tree:\n\`\`\`\n${repoTree}\n\`\`\``);
     }
+
+    // Include key source files (limit to avoid token overflow, prioritize most important)
+    if (fetchedFiles.size > 0) {
+      const sourceContext: string[] = [];
+      const priorityOrder = [
+        "package.json", "tsconfig.json", "index.html", "vite.config.ts", "vite.config.js",
+        "next.config.js", "next.config.mjs", "astro.config.mjs", "nuxt.config.ts",
+        "tailwind.config.ts", "tailwind.config.js", "postcss.config.js", ".env.example",
+        "Dockerfile", "docker-compose.yml",
+      ];
+      // First add priority config files
+      for (const name of priorityOrder) {
+        if (fetchedFiles.has(name)) {
+          const content = fetchedFiles.get(name)!;
+          const lang = name.endsWith(".json") ? "json" : name.endsWith(".ts") || name.endsWith(".tsx") || name.endsWith(".js") || name.endsWith(".jsx") ? "ts" : name.endsWith(".yml") || name.endsWith(".yaml") ? "yaml" : "text";
+          sourceContext.push(`\`${name}\`:\n\`\`\`${lang}\n${content.slice(0, 1500)}\n\`\`\``);
+          fetchedFiles.delete(name);
+        }
+      }
+      // Then add up to 6 more source files from src/ or lib/
+      let extraCount = 0;
+      for (const [path, content] of fetchedFiles) {
+        if (extraCount >= 6) break;
+        if (path.startsWith("src/") || path.startsWith("lib/") || path.startsWith("app/") || path.startsWith("pages/") || path.startsWith("components/")) {
+          const lang = path.endsWith(".tsx") || path.endsWith(".ts") ? "tsx" : path.endsWith(".jsx") ? "jsx" : path.endsWith(".js") ? "js" : path.endsWith(".css") ? "css" : "text";
+          sourceContext.push(`\`${path}\`:\n\`\`\`${lang}\n${content.slice(0, 2000)}\n\`\`\``);
+          extraCount++;
+        }
+      }
+      if (sourceContext.length > 0) {
+        contextParts.push(`Source files:\n${sourceContext.join("\n\n")}`);
+      }
+    }
+
     if (repoInfo.packageJsonRaw) {
       contextParts.push(`package.json:\n\`\`\`json\n${repoInfo.packageJsonRaw}\n\`\`\``);
     }
@@ -333,58 +484,50 @@ export const generateReadme = createServerFn({ method: "POST" })
     const contextBlock = contextParts.join("\n\n");
 
     const styleGuides = {
-      minimal: "Short and punchy. One-liner per section. No fluff.",
-      standard: "Balanced. Clear sections with 2-3 sentences each. Good for most projects.",
+      minimal: "Keep it tight — no filler, but still complete. Every section is a few sharp paragraphs. Omit anything obvious.",
+      standard: "Balanced, thorough. Each section has real substance — explanations, code snippets, and concrete details. Good for production open-source projects.",
       comprehensive:
-        "Detailed. Include code examples, technical explanations, and thorough coverage. Production quality.",
+        "Deep documentation. Full API references, multiple code examples, configuration guides, performance considerations. Shipshape production quality.",
     };
 
     const toneGuides = {
-      technical: "Precise, direct. Use technical terminology. Assume the reader is a developer.",
-      friendly: "Welcoming, conversational. Write like a helpful open-source maintainer.",
-      enterprise: "Formal, polished. Write for a corporate audience. Use complete sentences.",
+      technical: "Precise and direct. Use domain terminology. Write like a senior engineer documenting their own architecture. Assume the reader can handle depth.",
+      friendly: "Approachable but confident. Write like a maintainer who actually likes helping people. Use clear language, not marketing fluff.",
+      enterprise: "Formal and polished. Write for a professional audience evaluating the project for adoption. Complete sentences, structured sections, no shortcuts.",
     };
 
-const prompt = `You are a senior technical writer generating a README.md for a software project.
+const prompt = `You write README files that look like they were written by a human maintainer, not a template. You have strong opinions about what makes documentation useful.
 
-CORE INSTRUCTION:
-Deeply analyze the provided repository data in the CONTEXT block. Do not guess, invent, or assume features, dependencies, or architectures. Base every single claim on the actual code, configuration files, and dependencies provided.
-
-CONTEXT AVAILABLE TO YOU:
-- Configuration files (e.g., package.json, tsconfig.json)
-- Project structure and routing configurations
-- Source code entry points
-- HTML metadata and existing documentation fragments
-
-ANALYSIS TASKS:
-1. Project Purpose: Define exactly what the project does. Look at the primary dependencies, scripts, and main source code to determine if it is a frontend app, an API, or a library.
-2. Folder Structure: Map the actual folder tree based on the provided file paths and imports. Do not add standard boilerplate folders unless they exist in the context.
-3. Tech Stack: List the exact technologies found in the configuration files. Briefly explain the role of each tool within this specific project.
-4. Features: Identify features only if they are backed by the code. For example, only mention "Authentication" if auth libraries or middleware are clearly present.
-5. Installation & Usage: Provide setup commands based strictly on the detected package manager (npm, yarn, pnpm) and the exact scripts defined in the configuration files (like "npm run dev").
-6. Architecture & Best Practices: Describe the system architecture based entirely on the tech stack and code layout. 
-
-RULES:
-- Never write "not specified" or "no information available". If data is missing for a section, omit that section entirely.
-- Do not add placeholder links, fake badges, or fake image links.
-- Write in short, clear, and direct sentences.
-- Keep the output professional and highly factual.
-
-CONTEXT:
+# PROJECT CONTEXT
 ${contextBlock}
 
-REQUIREMENTS:
-Style (${data.style}): ${styleGuides[data.style]}
-Tone (${data.tone}): ${toneGuides[data.tone]}
-Sections to include (in order): ${data.sections.join(", ")}
+# README SPEC
+- Style: ${styleGuides[data.style]}
+- Tone: ${toneGuides[data.tone]}
+- Required sections (in this order): ${data.sections.join(" → ")}
 
-OUTPUT FORMAT:
-Output only the valid Markdown for the README.md. Do not include introductory text. Do not wrap the entire output in markdown code fences.
-Begin directly with "# ${projectTitle}".
-Use proper markdown code fences (\`\`\`) with language tags for code examples.
+# QUALITY STANDARDS
+A great README feels alive. It has:
+- A project description that actually explains what this thing DOES and why it exists
+- Real code examples that show the API surface, not generic placeholder code
+- A badge row with real shields.io badges that reflect the actual tech
+- Installation steps with the actual clone URL and package manager
+- A tech stack section that says what each tool IS used for in this project, not a dictionary definition
+- A features list that reads like release notes: concrete, specific, derived from real file names and structure
+- A folder structure that matches the actual project tree
+- Architecture explanation that connects the stack to the layout
+- Contributing guidelines that sound like a real human wrote them
 
+# FORMAT RULES
+- Start with "# ${projectTitle}" — no preamble
+- Use proper markdown fences with language tags
+- Code examples must look real, not pseudocode
+- Never say "I cannot", "I don't have access", or any AI apologetics
+- Every section gets genuine content. If context is thin, write what a maintainer would reasonably write about their own project
+
+# SEPARATOR
 ---METADATA---
-Return this exact JSON block after the README content, separated by a line containing only "---METADATA---":
+After the README, add "---METADATA---" then this exact JSON on its own line (no fences):
 ${JSON.stringify({
   inferredTitle: projectTitle,
   inferredDescription: projectDesc,
@@ -396,33 +539,157 @@ ${JSON.stringify({
 })}`;
 
     try {
-      const { createGroqProvider } = await import("./ai-gateway.server");
-      const groq = createGroqProvider(key);
+      let groq;
+      try {
+        const { createGroqProvider } = await import("./ai-gateway.server");
+        groq = createGroqProvider(key);
+      } catch (err) {
+        console.error("[generateReadme] Failed to initialize AI provider:", err);
+        throw new Error("AI provider initialization failed. Check GENERATIVE_KEY configuration.");
+      }
+
       const model = process.env.AI_MODEL ?? "llama-3.3-70b-versatile";
 
-      const { text } = await generateText({
-        model: groq(model),
-        prompt,
-        temperature: 0.7,
-      });
+      let text: string;
+      try {
+        const result = await generateText({
+          model: groq(model),
+          prompt,
+          temperature: 0.7,
+        });
+        text = result.text;
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : "Unknown error";
+        console.error("[generateReadme] AI generation failed:", message);
+        if (message.includes("429") || message.includes("rate limit")) {
+          throw new Error("AI rate limited. Try again in a moment.");
+        }
+        if (message.includes("timeout") || message.includes("timed out")) {
+          throw new Error("AI generation timed out. Your repo may be too large — try describing it instead.");
+        }
+        if (message.includes("401") || message.includes("unauthorized") || message.includes("api key")) {
+          throw new Error("Invalid AI API key. Check your GENERATIVE_KEY environment variable.");
+        }
+        throw new Error(`Generation failed: ${message}`);
+      }
 
-      const parts = text.split("---METADATA---");
-      const readme = parts[0]?.trim() || text;
+      if (!text || text.trim().length < 10) {
+        console.error("[generateReadme] AI returned empty or near-empty response");
+        throw new Error("AI returned an empty response. Try again.");
+      }
+
+      // Try primary separator, then fallback to markdown HR + JSON pattern
+      let readme = text;
+      let metaJson = "";
+      const metaSep = "---METADATA---";
+      const metaIdx = text.lastIndexOf(metaSep);
+      if (metaIdx !== -1) {
+        readme = text.slice(0, metaIdx).trim();
+        metaJson = text.slice(metaIdx + metaSep.length).trim();
+      } else {
+        const fallbackMatch = text.match(/---\s*\n(\{[\s\S]*\})\s*$/);
+        if (fallbackMatch) {
+          readme = text.slice(0, fallbackMatch.index).trim();
+          metaJson = fallbackMatch[1];
+        }
+      }
+
+      metaJson = metaJson.replace(/^```(?:json)?\s*/, "").replace(/\s*```$/, "");
+
+      if (!readme) {
+        throw new Error("Generated README is empty. Try again.");
+      }
 
       let parsedMeta = { ...discovery };
-      if (parts[1]) {
+      if (metaJson) {
         try {
-          const meta = JSON.parse(parts[1].trim());
+          const meta = JSON.parse(metaJson);
           parsedMeta = { ...parsedMeta, ...meta };
-        } catch {
-          // use defaults
+        } catch (e) {
+          console.warn("[generateReadme] Failed to parse metadata JSON:", metaJson.slice(0, 100));
         }
       }
 
       return { readme, discovery: parsedMeta };
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Generation failed";
-      if (message.includes("429")) throw new Error("Rate limited. Try again in a moment.");
-      throw new Error(message);
+      if (err instanceof Error) throw err;
+      throw new Error("An unexpected error occurred during README generation.");
     }
+  });
+
+const SECTION_GUIDES: Record<string, { label: string; prompt: string }> = {
+  installation: {
+    label: "Installation / Getting Started",
+    prompt: "Write an 'Installation' or 'Getting Started' section. Include exact terminal commands for npm/yarn/pnpm based on the project's package manager. Keep it scannable and actionable.",
+  },
+  usage: {
+    label: "Usage / Examples",
+    prompt: "Write a 'Usage' or 'Examples' section. Include a real code block (```) showing how to import and use the core API. Add a concise explanation.",
+  },
+  api: {
+    label: "API Documentation",
+    prompt: "Write an 'API Documentation' section. Document the main exports, functions, components, or endpoints. Use a table for props/parameters. Keep it precise and technical.",
+  },
+  toc: {
+    label: "Table of Contents",
+    prompt: "Write a 'Table of Contents' section with anchor links to all major sections in the README. Use a simple bullet list format with proper markdown anchor links.",
+  },
+  contributing: {
+    label: "Contributing",
+    prompt: "Write a 'Contributing' section. Cover local setup, pull request process, coding standards, and how to report issues. Keep it friendly but professional.",
+  },
+  license: {
+    label: "License",
+    prompt: "Write a 'License' section that states the project is open source under the MIT License. Include a link to the LICENSE file. Simple and standard.",
+  },
+  configuration: {
+    label: "Configuration / Environment",
+    prompt: "Write a 'Configuration' or 'Environment Variables' section. List env vars in a table with variable name, description, and default value. Based on the actual configuration files.",
+  },
+};
+
+export const generateSection = createServerFn({ method: "POST" })
+  .validator((input: unknown) => z.object({
+    existingReadme: z.string(),
+    sectionKey: z.string(),
+    projectTitle: z.string(),
+    projectDesc: z.string(),
+    detectedStack: z.array(z.string()),
+  }).parse(input))
+  .handler(async ({ data }) => {
+    const key = process.env.GENERATIVE_KEY;
+    if (!key) throw new Error("Missing GENERATIVE_KEY");
+
+    const guide = SECTION_GUIDES[data.sectionKey];
+    if (!guide) throw new Error(`Unknown section: ${data.sectionKey}`);
+
+    const { createGroqProvider } = await import("./ai-gateway.server");
+    const groq = createGroqProvider(key);
+    const model = process.env.AI_MODEL ?? "llama-3.3-70b-versatile";
+
+    const prompt = `You are the original author of this project improving its README.
+
+EXISTING README:
+${data.existingReadme}
+
+PROJECT:
+${data.projectTitle} — ${data.projectDesc}
+Stack: ${data.detectedStack.join(", ")}
+
+TASK:
+Write the missing section "## ${guide.label}" as if you built this project yourself.
+
+${guide.prompt}
+
+Make it read like a real section from a real README — specific, honest, technically accurate. Use code blocks, tables, or lists where they help.
+
+FORMAT: Output only the section content starting with "## ${guide.label}". No preamble. No code fences around the output.`;
+
+    const { text } = await generateText({
+      model: groq(model),
+      prompt,
+      temperature: 0.7,
+    });
+
+    return { section: text.trim() };
   });

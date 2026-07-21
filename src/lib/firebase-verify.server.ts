@@ -1,5 +1,5 @@
 export async function verifyFirebaseToken(idToken: string): Promise<string> {
-  const apiKey = "AIzaSyCFwxBgzmmJHGzdSHAv0MBfKVBNHe9K4Bo";
+  const apiKey = process.env.VITE_FIREBASE_API_KEY ?? "AIzaSyCFwxBgzmmJHGzdSHAv0MBfKVBNHe9K4Bo";
 
   const res = await fetch(
     `https://identitytoolkit.googleapis.com/v1/accounts:lookup?key=${apiKey}`,

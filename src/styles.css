@@ -73,15 +73,22 @@
   }
 }
 
-::-webkit-scrollbar {
-  width: 6px;
+/* Hide scrollbars everywhere while keeping scroll functionality */
+* {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
 }
-::-webkit-scrollbar-track {
-  background: transparent;
+*::-webkit-scrollbar {
+  display: none;
 }
-::-webkit-scrollbar-thumb {
-  background: var(--color-ink);
-  border-radius: 3px;
+
+/* Allow scrolling on the generate page content area */
+.no-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
 }
 
 @keyframes marquee {

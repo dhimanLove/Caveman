@@ -19,7 +19,7 @@ export function FinalCTA() {
           Ready for better docs?
         </motion.h2>
         <p className="mt-2 text-lg text-graphite max-w-md mx-auto leading-relaxed">
-          Join thousands of developers who stopped procrastinating on documentation.
+          No more blank READMEs. No more excuses. Just drop your repo URL and go.
         </p>
         <div className="mt-8">
           <Link

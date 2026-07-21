@@ -1,3 +1,5 @@
+import { Link } from "@tanstack/react-router";
+
 export function Footer() {
   return (
     <footer className="border-t border-ink bg-cream-paper">
@@ -5,9 +7,9 @@ export function Footer() {
         <div className="flex flex-col md:flex-row items-center justify-between gap-4">
           <span className="text-xs text-ink font-medium uppercase tracking-[0.286em]">Caveman</span>
           <div className="flex items-center gap-6 text-sm text-graphite">
-            <a href="#" className="hover:text-ink transition-colors">Privacy</a>
-            <a href="#" className="hover:text-ink transition-colors">Terms</a>
-            <a href="#" className="hover:text-ink transition-colors">Contact</a>
+            <Link to="/privacy" className="hover:text-ink transition-colors">Privacy</Link>
+            <Link to="/terms" className="hover:text-ink transition-colors">Terms</Link>
+            <a href="mailto:hello@caveman.dev" className="hover:text-ink transition-colors">Contact</a>
           </div>
         </div>
         <div className="mt-6 pt-4 border-t border-ink text-center text-xs text-graphite">
