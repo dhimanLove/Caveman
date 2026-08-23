@@ -10,7 +10,7 @@ export function SmoothScroll({ children }: { children: ReactNode }) {
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
     if (window.location.pathname.startsWith("/generate")) return;
 
-    let lenis: { destroy: () => void; raf: (t: number) => void; on: (e: string, fn: () => void) => void; scrollTo: (t: number) => void } | null = null;
+    let lenis: any = null;
     let rafId = 0;
 
     (async () => {

@@ -20,6 +20,7 @@ export function Footer() {
               <div className="flex flex-col gap-3">
                 <Link
                   to="/generate"
+                  search={{ url: undefined }}
                   className="text-sm text-ink hover:opacity-60 transition-opacity"
                 >
                   Generate

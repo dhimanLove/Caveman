@@ -1,4 +1,4 @@
-import { useRef, useEffect, useState } from "react";
+import { useRef, useEffect } from "react";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 
@@ -7,63 +7,37 @@ gsap.registerPlugin(ScrollTrigger);
 function AnimatedCounter({
   target,
   suffix = "",
-  isReduced,
 }: {
   target: number;
   suffix?: string;
-  isReduced: boolean;
 }) {
-  const [count, setCount] = useState(0);
   const ref = useRef<HTMLSpanElement>(null);
-  const counted = useRef(false);
 
   useEffect(() => {
-    if (isReduced) {
-      setCount(target);
-      return;
-    }
     const el = ref.current;
     if (!el) return;
 
-    // Safety net: if IntersectionObserver never fires (e.g. hidden container),
-    // snap to the final value so the section never ships showing "0+".
-    const fallback = setTimeout(() => {
-      if (!counted.current) {
-        counted.current = true;
-        setCount(target);
-      }
-    }, 2500);
-
-    if (!("IntersectionObserver" in window)) {
-      counted.current = true;
-      setCount(target);
-      return () => clearTimeout(fallback);
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      el.textContent = `${target.toLocaleString()}${suffix}`;
+      return;
     }
 
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting && !counted.current) {
-          counted.current = true;
-          clearTimeout(fallback);
-          const duration = 1800;
-          const start = performance.now();
-          const step = (now: number) => {
-            const p = Math.min((now - start) / duration, 1);
-            const eased = 1 - Math.pow(1 - p, 3);
-            setCount(Math.floor(eased * target));
-            if (p < 1) requestAnimationFrame(step);
-          };
-          requestAnimationFrame(step);
-        }
-      },
-      { threshold: 0.3 },
-    );
-    observer.observe(el);
-    return () => {
-      observer.disconnect();
-      clearTimeout(fallback);
-    };
-  }, [target, isReduced]);
+    // Count up only when the number scrolls into view - driven by the same
+    // ScrollTrigger that reveals the column, so it can never fire early.
+    const proxy = { v: 0 };
+    const ctx = gsap.context(() => {
+      gsap.to(proxy, {
+        v: target,
+        duration: 1.6,
+        ease: "power2.out",
+        onUpdate: () => {
+          el.textContent = `${Math.floor(proxy.v).toLocaleString()}${suffix}`;
+        },
+        scrollTrigger: { trigger: el, start: "top 90%", once: true },
+      });
+    }, el);
+    return () => ctx.revert();
+  }, [target, suffix]);
 
   return (
     <span
@@ -71,8 +45,7 @@ function AnimatedCounter({
       className="editorial-display text-ink tabular-nums"
       style={{ fontSize: "clamp(40px, 6vw, 64px)", lineHeight: 1 }}
     >
-      {count.toLocaleString()}
-      {suffix}
+      0{suffix}
     </span>
   );
 }
@@ -86,11 +59,6 @@ const stats = [
 
 export function StatsStrip() {
   const ref = useRef<HTMLElement>(null);
-  const [isReduced, setIsReduced] = useState(false);
-
-  useEffect(() => {
-    setIsReduced(window.matchMedia("(prefers-reduced-motion: reduce)").matches);
-  }, []);
 
   useEffect(() => {
     const ctx = gsap.context(() => {
@@ -115,7 +83,7 @@ export function StatsStrip() {
               key={i}
               className={`stats-col text-center px-4 py-2 ${i > 0 ? "lg:border-l lg:border-bone" : ""}`}
             >
-              <AnimatedCounter target={s.target} suffix={s.suffix} isReduced={isReduced} />
+              <AnimatedCounter target={s.target} suffix={s.suffix} />
               <p className="mt-3 text-xs text-fog uppercase tracking-[0.14em]">{s.label}</p>
             </div>
           ))}

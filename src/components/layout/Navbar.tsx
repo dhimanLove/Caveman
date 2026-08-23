@@ -126,7 +126,7 @@ export function Navbar() {
                   referrerPolicy="no-referrer"
                 />
               )}
-              <Link to="/generate" className="circle-arrow" aria-label="Open README generator">
+              <Link to="/generate" search={{ url: undefined }} className="circle-arrow" aria-label="Open README generator">
                 <svg
                   width="16"
                   height="16"
@@ -147,6 +147,7 @@ export function Navbar() {
           ) : (
             <Link
               to="/generate"
+              search={{ url: undefined }}
               className="hidden sm:inline-flex btn-primary !h-9 !px-4 text-sm group"
             >
               Get Started
@@ -202,6 +203,7 @@ export function Navbar() {
             {!user && (
               <Link
                 to="/generate"
+                search={{ url: undefined }}
                 onClick={() => setMenuOpen(false)}
                 className="btn-primary justify-center mt-3 sm:hidden"
               >

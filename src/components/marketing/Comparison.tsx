@@ -86,7 +86,7 @@ export function Comparison() {
         </div>
 
         <div className="flex justify-center mt-10">
-          <Link to="/generate" className="btn-primary">
+          <Link to="/generate" search={{ url: undefined }} className="btn-primary">
             See the difference
           </Link>
         </div>

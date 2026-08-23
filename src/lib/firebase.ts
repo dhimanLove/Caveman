@@ -1,23 +1,32 @@
 import { initializeApp, getApps, type FirebaseOptions } from "firebase/app";
 import { getAuth, GoogleAuthProvider } from "firebase/auth";
 
-const firebaseConfig: FirebaseOptions = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY ?? "AIzaSyCFwxBgzmmJHGzdSHAv0MBfKVBNHe9K4Bo",
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN ?? "caveman-d35a5.firebaseapp.com",
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID ?? "caveman-d35a5",
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET ?? "caveman-d35a5.firebasestorage.app",
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID ?? "932409750435",
-  appId: import.meta.env.VITE_FIREBASE_APP_ID ?? "1:932409750435:web:de8012ec644b21559aa016",
+const env = import.meta.env;
+
+const requiredConfig = {
+  apiKey: env.VITE_FIREBASE_API_KEY as string | undefined,
+  authDomain: env.VITE_FIREBASE_AUTH_DOMAIN as string | undefined,
+  projectId: env.VITE_FIREBASE_PROJECT_ID as string | undefined,
+  storageBucket: env.VITE_FIREBASE_STORAGE_BUCKET as string | undefined,
+  messagingSenderId: env.VITE_FIREBASE_MESSAGING_SENDER_ID as string | undefined,
+  appId: env.VITE_FIREBASE_APP_ID as string | undefined,
 };
 
-// Validate required config fields
-const missingFields = (["apiKey", "authDomain", "projectId"] as (keyof FirebaseOptions)[])
-  .filter((key) => !firebaseConfig[key]);
+// No hardcoded fallbacks - configuration comes from the environment (.env /
+// hosting provider env vars). Firebase web keys are public identifiers by
+// design, but they still belong in configuration, not source.
+const missingFields = Object.entries(requiredConfig)
+  .filter(([, v]) => !v)
+  .map(([k]) => k);
 if (missingFields.length > 0) {
-  throw new Error(`Firebase config missing required fields: ${missingFields.join(", ")}`);
+  throw new Error(
+    `Firebase config missing: ${missingFields.join(", ")}. Add the VITE_FIREBASE_* variables to your .env file.`,
+  );
 }
 
-let app;
+const firebaseConfig: FirebaseOptions = requiredConfig;
+
+let app: ReturnType<typeof initializeApp>;
 try {
   app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
 } catch (err) {
@@ -25,7 +34,7 @@ try {
   throw new Error(`Firebase initialization failed: ${err instanceof Error ? err.message : "unknown error"}`);
 }
 
-let auth;
+let auth: ReturnType<typeof getAuth>;
 try {
   auth = getAuth(app);
 } catch (err) {

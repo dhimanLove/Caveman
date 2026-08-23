@@ -64,7 +64,7 @@ export function SecondaryHero() {
             accurate document in seconds.
           </p>
           <div className="sec-hero-statement mt-8">
-            <Link to="/generate" className="btn-primary">
+            <Link to="/generate" search={{ url: undefined }} className="btn-primary">
               Generate your README
             </Link>
           </div>

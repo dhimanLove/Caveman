@@ -75,7 +75,7 @@ export function Hero() {
       return;
     }
     setInputError("");
-    navigate({ to: "/generate", search: url ? { url } : {} });
+    navigate({ to: "/generate", search: url ? { url } : { url: undefined } });
   };
 
   useEffect(() => {

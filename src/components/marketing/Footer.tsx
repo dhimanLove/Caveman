@@ -17,7 +17,7 @@ export function Footer() {
           </div>
 
           <div className="flex items-center gap-8 text-sm text-paper/60">
-            <Link to="/generate" className="hover:text-paper transition-colors">
+            <Link to="/generate" search={{ url: undefined }} className="hover:text-paper transition-colors">
               Generate
             </Link>
             <Link to="/graph" className="hover:text-paper transition-colors">

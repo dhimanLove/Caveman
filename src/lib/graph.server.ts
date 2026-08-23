@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
+import { checkIpLimit, getClientIp, isSameOrigin } from "./request-guard.server";
 
 interface CommitNode {
   sha: string;
@@ -19,23 +20,36 @@ interface GraphData {
   branch: string;
 }
 
+// GitHub owner/repo names only - blocks traversal and odd hosts before any fetch
+const GH_NAME_RE = /^[A-Za-z0-9](?:[A-Za-z0-9._-]{0,99})$/;
+
 const Input = z.object({
-  url: z.string().min(1, "URL is required"),
+  url: z.string().min(1, "URL is required").max(200),
 });
 
 export const fetchCommitGraph = createServerFn({ method: "GET" })
   .validator((input: unknown) => Input.parse(input))
   .handler(async ({ data }): Promise<GraphData> => {
+    if (!isSameOrigin()) {
+      throw new Error("Invalid request.");
+    }
+
+    // Secondary per-IP limit (public endpoint - no auth required)
+    if (!checkIpLimit(getClientIp(), "graph")) {
+      throw new Error("Too many requests. Please try again later.");
+    }
+
     const { url } = data;
 
-    // Parse GitHub URL: github.com/owner/repo or full URL
-    const match = url.match(/github\.com\/([^/]+)\/([^/\s?#]+)/);
-    if (!match) throw new Error("Invalid GitHub URL. Expected format: github.com/owner/repo");
+    const match = url.match(/github\.com\/([^/\s?#]+)\/([^/\s?#]+)/);
+    if (!match || !GH_NAME_RE.test(match[1]) || !GH_NAME_RE.test(match[2].replace(/\.git$/, ""))) {
+      throw new Error("Invalid GitHub URL. Expected format: github.com/owner/repo");
+    }
 
     const owner = match[1];
     const repo = match[2].replace(/\.git$/, "");
 
-    const token = process.env.GITHUB_TOKEN || process.env.VITE_GITHUB_TOKEN || "";
+    const token = process.env.GITHUB_TOKEN || "";
     const headers: Record<string, string> = {
       Accept: "application/vnd.github+json",
       "User-Agent": "caveman-graph",
@@ -45,14 +59,17 @@ export const fetchCommitGraph = createServerFn({ method: "GET" })
     // Fetch commits (up to 100 for performance)
     const commitRes = await fetch(
       `https://api.github.com/repos/${owner}/${repo}/commits?per_page=100`,
-      { headers }
+      { headers },
     );
 
     if (!commitRes.ok) {
-      const errText = await commitRes.text();
-      if (commitRes.status === 403) throw new Error("GitHub API rate limit exceeded. Try again later or set GITHUB_TOKEN.");
+      // Log status server-side; return a generic client-safe message
+      console.warn(`[graph] GitHub API ${commitRes.status} for ${owner}/${repo}`);
       if (commitRes.status === 404) throw new Error(`Repository ${owner}/${repo} not found.`);
-      throw new Error(`GitHub API error (${commitRes.status}): ${errText}`);
+      if (commitRes.status === 403 || commitRes.status === 429) {
+        throw new Error("GitHub API rate limit exceeded. Try again later.");
+      }
+      throw new Error("Could not load commit data. Try again later.");
     }
 
     const commits: any[] = await commitRes.json();

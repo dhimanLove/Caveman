@@ -107,7 +107,7 @@ export function HealthScore({ text, generating, onGenerateSection }: HealthScore
   const [expanded, setExpanded] = useState(true);
   const [generatedKeys, setGeneratedKeys] = useState<Set<string>>(new Set());
   const [scoredText, setScoredText] = useState("");
-  const debounceRef = useRef<ReturnType<typeof setTimeout>>();
+  const debounceRef = useRef<ReturnType<typeof setTimeout>>(undefined);
 
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
@@ -168,7 +168,7 @@ export function HealthScore({ text, generating, onGenerateSection }: HealthScore
                   className="flex items-center gap-2.5 px-2.5 py-2 rounded-lg hover:bg-cream transition-colors group"
                 >
                   <div className="w-4 h-4 rounded-sm bg-ink/10 border border-ink/20 flex items-center justify-center shrink-0">
-                    <Check size={10} className="text-ink" weight="bold" />
+                    <Check size={10} className="text-ink" />
                   </div>
                   <span className="text-xs text-ink/60 font-medium">{c.label}</span>
                 </motion.div>

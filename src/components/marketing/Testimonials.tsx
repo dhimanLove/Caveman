@@ -34,14 +34,16 @@ const testimonials = [
 export function Testimonials() {
   const sectionRef = useRef<HTMLElement>(null);
   const [activeIndex, setActiveIndex] = useState(0);
-  const intervalRef = useRef<ReturnType<typeof setInterval>>();
+  const intervalRef = useRef<ReturnType<typeof setInterval>>(undefined);
   const trackRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     intervalRef.current = setInterval(() => {
       setActiveIndex((i) => (i + 1) % testimonials.length);
     }, 4000);
-    return () => clearInterval(intervalRef.current);
+    return () => {
+      if (intervalRef.current) clearInterval(intervalRef.current);
+    };
   }, []);
 
   useEffect(() => {
@@ -68,9 +70,11 @@ export function Testimonials() {
     return () => ctx.revert();
   }, []);
 
-  const pause = () => clearInterval(intervalRef.current);
+  const pause = () => {
+    if (intervalRef.current) clearInterval(intervalRef.current);
+  };
   const resume = () => {
-    clearInterval(intervalRef.current);
+    if (intervalRef.current) clearInterval(intervalRef.current);
     intervalRef.current = setInterval(() => {
       setActiveIndex((i) => (i + 1) % testimonials.length);
     }, 4000);

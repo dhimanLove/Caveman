@@ -64,12 +64,22 @@ interface GenerateState {
 }
 
 function classifyError(err: unknown): { message: string; cooldown: number } {
-  if (!err || typeof err !== "object") {
+  if (!err) {
     return { message: "An unexpected error occurred.", cooldown: 0 };
   }
 
-  const error = err as Record<string, unknown>;
-  const rawMessage = typeof error.message === "string" ? error.message : "";
+  let rawMessage = "";
+  if (typeof err === "string") {
+    rawMessage = err;
+  } else if (typeof err === "object") {
+    const error = err as Record<string, unknown>;
+    rawMessage =
+      typeof error.message === "string"
+        ? error.message
+        : typeof error.detail === "string"
+          ? error.detail
+          : String(err);
+  }
 
   // Check for structured cooldown error (JSON with cooldownEnd)
   if (rawMessage) {
@@ -83,29 +93,34 @@ function classifyError(err: unknown): { message: string; cooldown: number } {
     }
   }
 
-  // Network / timeout errors
-  if (error.name === "AbortError" || rawMessage.includes("timeout") || rawMessage.includes("timed out")) {
-    return { message: "Request timed out. Check your connection and try again.", cooldown: 0 };
-  }
-  if (rawMessage.includes("fetch") || rawMessage.includes("network") || rawMessage.includes("NetworkError")) {
-    return { message: "Network error. Check your connection and try again.", cooldown: 0 };
-  }
-
   // Auth errors
-  if (rawMessage === "Unauthorized") {
+  if (rawMessage.includes("Unauthorized") || rawMessage.includes("unauthorized")) {
     return { message: "Session expired. Please sign in again.", cooldown: 0 };
   }
   if (rawMessage.includes("token") || rawMessage.includes("id token")) {
     return { message: "Authentication failed. Please sign in again.", cooldown: 0 };
   }
 
+  // Timeout errors
+  if (rawMessage.includes("timeout") || rawMessage.includes("timed out") || (err as any)?.name === "AbortError") {
+    return { message: "Request timed out. Check your connection and try again.", cooldown: 0 };
+  }
+
+  // Real offline network errors
+  if (typeof window !== "undefined" && !window.navigator.onLine) {
+    return { message: "Network error. Check your connection and try again.", cooldown: 0 };
+  }
+
   // Input errors
-  if (rawMessage === "Invalid input" || rawMessage.includes("Invalid input")) {
+  if (rawMessage.includes("Invalid input")) {
     return { message: "Invalid input detected. Check your URL or description.", cooldown: 0 };
+  }
+  if (rawMessage.includes("Provide a GitHub URL")) {
+    return { message: "Provide a GitHub URL or a project description.", cooldown: 0 };
   }
 
   // Rate limit / cooldown errors
-  if (rawMessage.includes("rate limit") || rawMessage.includes("Rate limit")) {
+  if (rawMessage.includes("Too many requests") || rawMessage.includes("rate limit") || rawMessage.includes("Rate limit")) {
     return { message: "Rate limited. Please wait before generating again.", cooldown: 0 };
   }
   if (rawMessage.includes("cooldown")) {
@@ -141,7 +156,7 @@ export function useGenerate() {
 
       let token: string;
       try {
-        token = await user.getIdToken();
+        token = await user.getIdToken(true);
       } catch {
         setState({ data: null, error: "Failed to get authentication token. Please sign in again.", cooldownExpiry: 0, isPending: false });
         return;
