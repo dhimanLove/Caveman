@@ -93,7 +93,10 @@ export const generateSecure = createServerFn({ method: "POST" })
         message.includes("Failed to initialize AI provider") ||
         message.includes("README generation failed") ||
         message.includes("Provide a GitHub URL") ||
-        message.includes("AI rate limited")
+        message.includes("AI rate limited") ||
+        message.includes("too large") ||
+        message.includes("context") ||
+        message.includes("tokens")
       ) {
         throw err;
       }

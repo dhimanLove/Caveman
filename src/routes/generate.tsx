@@ -642,7 +642,7 @@ function AuthenticatedApp({ user, onSignOut }: { user: any; onSignOut: () => voi
               </div>
 
               {/* Main content */}
-              <div className="flex-1 flex flex-col min-w-0 bg-paper overflow-y-auto">
+              <div className="flex-1 flex flex-col min-w-0 bg-paper min-h-0 overflow-y-auto">
                 {isPending && (
                   <div className="px-4 py-3 border-b border-bone bg-paper shrink-0">
                     <div className="flex items-center gap-3">
@@ -692,7 +692,7 @@ function AuthenticatedApp({ user, onSignOut }: { user: any; onSignOut: () => voi
                 )}
 
                 {readme && (
-                  <div className="flex flex-col min-h-0">
+                  <div className="flex flex-col">
                     {/* Toolbar */}
                     <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between px-4 sm:px-5 py-3 border-b border-bone bg-paper shrink-0">
                       <div className="flex items-center gap-2">
