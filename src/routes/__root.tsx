@@ -143,7 +143,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { name: "twitter:card", content: "summary_large_image" },
       { name: "twitter:title", content: "Caveman - AI README Generator" },
       { name: "robots", content: "index, follow" },
-      { name: "theme-color", content: "#F5F5F5" },
+      { name: "theme-color", content: "#F5F0FF" },
     ],
     links: [
       { rel: "preconnect", href: "https://api.fontshare.com" },

@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Check, X, ChevronDown, Sparkles, Loader2 } from "lucide-react";
+import { IconCheck as Check, IconX as X, IconChevronDown as ChevronDown, IconSparkle as Sparkles, IconLoader as Loader2 } from "@/components/icons";
 import { cn } from "@/lib/utils";
 
 interface Criterion {

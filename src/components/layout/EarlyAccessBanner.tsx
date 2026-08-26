@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { X } from "@phosphor-icons/react";
+import { IconX as X } from "@/components/icons";
 
 export function EarlyAccessBanner() {
   const [dismissed, setDismissed] = useState(false);

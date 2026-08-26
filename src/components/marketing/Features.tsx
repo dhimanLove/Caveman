@@ -2,70 +2,70 @@ import { useRef, useEffect } from "react";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import {
-  Code,
-  GitFork,
-  ShieldCheck,
-  FileMagnifyingGlass,
-  PuzzlePiece,
-  Clock,
-  Cube,
-  Terminal,
-  PaintBucket,
-} from "@phosphor-icons/react";
+  IconCode as Code,
+  IconGitBranch as GitFork,
+  IconShield as ShieldCheck,
+  IconMagnifyingGlass as FileMagnifyingGlass,
+  IconPuzzle as PuzzlePiece,
+  IconClock as Clock,
+  IconBox as Cube,
+  IconTerminal as Terminal,
+  IconPaintbrush as PaintBucket,
+} from "@/components/icons";
 
 gsap.registerPlugin(ScrollTrigger);
 
 const features = [
   {
-    icon: <Code size={18} weight="duotone" />,
+    icon: <Code size={18} />,
     title: "Deep code analysis",
     desc: "Reads your actual source files - entry points, components, APIs, and config. Writes docs that match your real codebase.",
     tag: "Core",
   },
   {
-    icon: <GitFork size={18} weight="duotone" />,
+    icon: <GitFork size={18} />,
     title: "Stack auto-detection",
     desc: "Detects React, Next.js, Tailwind, Prisma, tRPC, Express, Django, and more from your dependencies and file tree.",
     tag: "Detection",
   },
   {
-    icon: <Terminal size={18} weight="duotone" />,
+    icon: <Terminal size={18} />,
     title: "Package manager aware",
     desc: "Reads lockfiles to generate accurate install commands - npm, pnpm, yarn, bun. Even handles monorepo workspaces.",
     tag: "CLI",
   },
   {
-    icon: <Cube size={18} weight="duotone" />,
+    icon: <Cube size={18} />,
     title: "Architecture mapping",
     desc: "Identifies your project structure, component hierarchy, API routes, and data models. Generates accurate architecture diagrams.",
     tag: "Structure",
   },
   {
-    icon: <ShieldCheck size={18} weight="duotone" />,
+    icon: <ShieldCheck size={18} />,
     title: "Health scoring",
     desc: "Built-in README quality checker scores your docs against 11 criteria. Missing sections? It auto-generates them.",
     tag: "Quality",
   },
   {
-    icon: <PuzzlePiece size={18} weight="duotone" />,
+    icon: <PuzzlePiece size={18} />,
     title: "17+ customizable sections",
     desc: "Installation, Usage, API Docs, Contributing, Features, Architecture, Testing, Deployment - toggle any combination.",
     tag: "Flexible",
   },
   {
-    icon: <PaintBucket size={18} weight="duotone" />,
+    icon: <PaintBucket size={18} />,
     title: "Tone & style control",
     desc: "Switch between Technical, Friendly, or Enterprise tone. Choose Minimal, Standard, or Comprehensive depth. One click.",
     tag: "Custom",
   },
   {
-    icon: <Clock size={18} weight="duotone" />,
+    icon: <Clock size={18} />,
     title: "Under 90 seconds",
     desc: "URL to polished README in ~47s on average. Includes markdown preview, inline editor, copy, and download.",
     tag: "Speed",
   },
   {
-    icon: <FileMagnifyingGlass size={18} weight="duotone" />,
+    icon: <FileMagnifyingGlass size={18} />,
     title: "GitHub deep scan",
     desc: "Traverses up to 3 directory levels. Fetches 50+ source files - components, API routes, config, and schemas - before writing.",
     tag: "Depth",

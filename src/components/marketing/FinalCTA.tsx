@@ -2,7 +2,7 @@ import { useRef, useEffect } from "react";
 import { Link } from "@tanstack/react-router";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
-import { ArrowRight } from "@phosphor-icons/react";
+import { IconArrowRight as ArrowRight } from "@/components/icons";
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -43,7 +43,6 @@ export function FinalCTA() {
             Generate Your README
             <ArrowRight
               size={16}
-              weight="bold"
               className="group-hover:translate-x-1 transition-transform"
             />
           </Link>

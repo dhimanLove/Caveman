@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, GitCommit, User, Calendar, GitFork, CopySimple } from "@phosphor-icons/react";
+import { IconX as X, IconCommit as GitCommit, IconUser as User, IconCalendar as Calendar, IconGitBranch as GitFork, IconCopy as CopySimple } from "@/components/icons";
 
 interface CommitNode {
   sha: string;

@@ -48,13 +48,13 @@ const CONFIG = {
 };
 
 const COLORS = [
-  "#3b82f6",
+  "#1a1a1a",
   "#ef4444",
   "#10b981",
   "#f59e0b",
   "#8b5cf6",
   "#ec4899",
-  "#06b6d4",
+  "#2d2d2d",
   "#f97316",
 ];
 
@@ -400,7 +400,7 @@ export function CommitGraph({
         const cpy = my + (ny / len) * curve;
 
         ctx.quadraticCurveTo(cpx, cpy, edge.target.x, edge.target.y);
-        ctx.strokeStyle = highlighted ? "#3b82f6" : dimmed ? "#f1f5f9" : "#e5e7eb";
+        ctx.strokeStyle = highlighted ? "#1a1a1a" : dimmed ? "#f1f5f9" : "#e5e7eb";
         ctx.lineWidth = (highlighted ? 2.5 : 1.5) / cam.zoom;
         ctx.stroke();
 
@@ -419,7 +419,7 @@ export function CommitGraph({
           ty - arrowLen * Math.sin(angle + Math.PI / 7),
         );
         ctx.closePath();
-        ctx.fillStyle = highlighted ? "#3b82f6" : dimmed ? "#f1f5f9" : "#cbd5e1";
+        ctx.fillStyle = highlighted ? "#1a1a1a" : dimmed ? "#f1f5f9" : "#cbd5e1";
         ctx.fill();
       }
 
@@ -604,7 +604,7 @@ export function CommitGraph({
       {loading && (
         <div className="absolute inset-0 flex items-center justify-center bg-white/80 transition-opacity duration-500">
           <div className="flex flex-col items-center gap-2">
-            <div className="w-6 h-6 rounded-full border-2 border-blue-500 border-t-transparent animate-spin" />
+            <div className="w-6 h-6 rounded-full border-2 border-gray-900 border-t-transparent animate-spin" />
             <span className="text-sm font-medium text-gray-600">Building graph...</span>
           </div>
         </div>

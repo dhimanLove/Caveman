@@ -6,23 +6,25 @@
 @import "@fontsource-variable/jetbrains-mono";
 
 @theme {
-  /* Colors - vcdesign.team base (monochrome) + single signature accent */
-  --color-electric-iris: #6248ff;
-  --color-soft-lilac: #e5e7eb;
-  --color-iris-mist: #f5f5f5;
+  /* Colors - Lavender + Black */
+  --color-electric-iris: #8B5CF6;
+  --color-soft-lilac: #E0D4FF;
+  --color-iris-mist: #F5F0FF;
   --color-ink: #0f0f0f;
   --color-graphite: #1f2937;
   --color-slate: #374151;
-  --color-iron: #6b7280;
-  --color-fog: #6b7280;
-  --color-bone: #e5e7eb;
-  --color-cream: #f5f5f5;
+  --color-iron: #7C6FA0;
+  --color-fog: #7C6FA0;
+  --color-bone: #E0D4FF;
+  --color-cream: #F5F0FF;
   --color-paper: #ffffff;
-  --color-acid-lemon: #f0f41a;
+  --color-lavender: #8B5CF6;
+  --color-lavender-light: #C4B1FF;
+  --color-lavender-dark: #6D28D9;
   --color-err: #d92d20;
 
-  /* Gradient - signature accent for text moments */
-  --gradient-electric-iris: linear-gradient(100deg, #6248ff, #f0f41a 60%, #6248ff 100%);
+  /* Gradient - lavender accent for text moments */
+  --gradient-electric-iris: linear-gradient(100deg, #6D28D9, #A78BFA 50%, #8B5CF6 100%);
 
   /* Font Families */
   --font-relative:
@@ -77,10 +79,10 @@
   --shadow-card: 0 0 0 0 rgba(0, 0, 0, 0);
 
   /* Surfaces */
-  --surface-canvas: #f5f5f5;
+  --surface-canvas: #F5F0FF;
   --surface-card: #ffffff;
   --surface-elevated: #ffffff;
-  --surface-tinted: #f5f5f5;
+  --surface-tinted: #EDE5FF;
 }
 
 @theme inline {
@@ -92,17 +94,17 @@
   --color-popover-foreground: var(--color-ink);
   --color-primary: var(--color-ink);
   --color-primary-foreground: var(--color-cream);
-  --color-secondary: var(--color-paper);
-  --color-secondary-foreground: var(--color-ink);
+  --color-secondary: var(--color-lavender);
+  --color-secondary-foreground: #ffffff;
   --color-muted: var(--color-cream);
   --color-muted-foreground: var(--color-fog);
-  --color-accent: var(--color-cream);
-  --color-accent-foreground: var(--color-ink);
+  --color-accent: var(--color-lavender);
+  --color-accent-foreground: #ffffff;
   --color-destructive: var(--color-err);
   --color-destructive-foreground: #ffffff;
   --color-border: var(--color-bone);
   --color-input: var(--color-bone);
-  --color-ring: var(--color-ink);
+  --color-ring: var(--color-lavender);
   --radius: 4px;
 }
 
@@ -123,7 +125,7 @@
     font-weight: 300;
   }
   ::selection {
-    background: var(--color-electric-iris);
+    background: var(--color-lavender);
     color: #ffffff;
   }
 }
@@ -250,7 +252,7 @@
   bottom: -3px;
   width: 100%;
   height: 1px;
-  background: var(--color-electric-iris);
+  background: var(--color-lavender);
   transform: scaleX(0);
   transform-origin: left;
   transition: transform 0.3s cubic-bezier(0.22, 1, 0.36, 1);
@@ -268,8 +270,8 @@
 }
 .hover-lift:hover {
   transform: translateY(-4px);
-  box-shadow: 0 12px 24px -12px rgba(98, 72, 255, 0.18);
-  border-color: rgba(98, 72, 255, 0.4);
+  box-shadow: 0 12px 24px -12px rgba(139, 92, 246, 0.2);
+  border-color: rgba(139, 92, 246, 0.3);
 }
 
 .pulse-dot::before {
@@ -277,7 +279,7 @@
   position: absolute;
   inset: 0;
   border-radius: 9999px;
-  background: var(--color-electric-iris);
+  background: var(--color-lavender);
   animation: pulse-ring 2s cubic-bezier(0.22, 1, 0.36, 1) infinite;
 }
 
@@ -303,10 +305,10 @@
     color 0.2s;
 }
 .btn-primary:hover {
-  background: #2a2a2a;
+  background: var(--color-lavender-dark);
 }
 .btn-primary:active {
-  background: #000000;
+  background: #5B21B6;
 }
 
 .btn-outline {
@@ -330,11 +332,11 @@
     color 0.2s;
 }
 .btn-outline:hover {
-  background: var(--color-ink);
-  color: var(--color-cream);
+  background: var(--color-lavender);
+  color: #ffffff;
 }
 .btn-outline:active {
-  background: #000000;
+  background: var(--color-lavender-dark);
 }
 
 .btn-ghost {
@@ -402,7 +404,7 @@
 }
 .circle-arrow:hover {
   transform: rotate(45deg) scale(1.08);
-  background: var(--color-electric-iris);
+  background: var(--color-lavender);
 }
 
 /* Gradient text - signature accent moment */

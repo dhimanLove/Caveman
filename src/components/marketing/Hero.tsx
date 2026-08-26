@@ -2,7 +2,7 @@ import { useRef, useEffect, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
-import { ArrowRight, CaretRight } from "@phosphor-icons/react";
+import { IconArrowRight as ArrowRight, IconArrowRight as CaretRight } from "@/components/icons";
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -265,7 +265,7 @@ export function Hero() {
               <button type="submit" className="btn-primary shrink-0 cursor-pointer !px-3 sm:!px-4">
                 <span className="hidden sm:inline">Generate </span>
                 <span className="sm:hidden">Go</span>
-                <ArrowRight size={15} weight="bold" />
+                <ArrowRight size={15} />
               </button>
             </div>
 
@@ -297,7 +297,7 @@ export function Hero() {
               }}
               className="link-ghost flex items-center gap-1 text-sm cursor-pointer"
             >
-              How it works <CaretRight size={13} weight="fill" />
+              How it works <CaretRight size={13} />
             </button>
             <button
               type="button"
@@ -308,7 +308,7 @@ export function Hero() {
               }}
               className="link-ghost flex items-center gap-1 text-sm cursor-pointer"
             >
-              See examples <CaretRight size={13} weight="fill" />
+              See examples <CaretRight size={13} />
             </button>
           </div>
         </div>

@@ -2,7 +2,7 @@ import { useRef, useEffect } from "react";
 import { Link } from "@tanstack/react-router";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
-import { Check, Minus } from "@phosphor-icons/react";
+import { IconCheck as Check, IconMinus as Minus } from "@/components/icons";
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -65,7 +65,7 @@ export function Comparison() {
                 <span className="w-12 sm:w-16 flex justify-center">
                   {r.us ? (
                     <span className="w-5 h-5 rounded-full bg-ink flex items-center justify-center">
-                      <Check size={12} weight="bold" className="text-cream" />
+                      <Check size={12} className="text-cream" />
                     </span>
                   ) : (
                     <Minus size={14} className="text-bone" />
@@ -74,7 +74,7 @@ export function Comparison() {
                 <span className="w-12 sm:w-16 flex justify-center">
                   {r.them ? (
                     <span className="w-5 h-5 rounded-full bg-cream border border-bone flex items-center justify-center">
-                      <Check size={12} weight="bold" className="text-iron" />
+                      <Check size={12} className="text-iron" />
                     </span>
                   ) : (
                     <Minus size={14} className="text-bone" />

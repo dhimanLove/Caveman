@@ -2,7 +2,7 @@ import { useRef, useEffect } from "react";
 import { Link } from "@tanstack/react-router";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
-import { Check } from "@phosphor-icons/react";
+import { IconCheck as Check } from "@/components/icons";
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -81,7 +81,7 @@ export function SecondaryHero() {
         </div>
 
         <div className="sec-hero-card flex items-center gap-2 text-sm text-ink/70 pt-8">
-          <Check size={15} weight="bold" />
+          <Check size={15} />
           No lock-in - export markdown and take it anywhere.
         </div>
       </div>

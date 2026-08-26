@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Link as LinkIcon, CircleNotch, Warning, ArrowLeft, Graph } from "@phosphor-icons/react";
+import { IconLink as LinkIcon, IconLoader as CircleNotch, IconWarning as Warning, IconArrowLeft as ArrowLeft } from "@/components/icons";
 
 import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
@@ -103,7 +103,13 @@ function GraphPage() {
             <div className="max-w-3xl mx-auto text-center">
               <div className="flex items-center justify-center gap-2 mb-4">
                 <div className="w-10 h-10 rounded-full bg-ink flex items-center justify-center text-cream animate-float transition-colors duration-300 hover:bg-electric-iris">
-                  <Graph size={20} weight="bold" />
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <circle cx="5" cy="12" r="3" fill="currentColor"/>
+                    <circle cx="19" cy="6" r="3" fill="currentColor"/>
+                    <circle cx="19" cy="18" r="3" fill="currentColor"/>
+                    <line x1="8" y1="11" x2="16" y2="7" stroke="currentColor" strokeWidth="1.5"/>
+                    <line x1="8" y1="13" x2="16" y2="17" stroke="currentColor" strokeWidth="1.5"/>
+                  </svg>
                 </div>
               </div>
               <h1 className="text-[clamp(36px,5vw,48px)] text-ink leading-[1.1] font-light text-center">
@@ -222,7 +228,13 @@ function GraphPage() {
                     {!selectedNode && (
                       <Card className="rounded-2xl border-bone bg-paper shadow-none">
                         <CardContent className="p-6 text-center">
-                          <Graph size={24} className="text-ink/20 mx-auto mb-2" />
+                          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="text-ink/20 mx-auto mb-2">
+                            <circle cx="5" cy="12" r="3" fill="currentColor"/>
+                            <circle cx="19" cy="6" r="3" fill="currentColor"/>
+                            <circle cx="19" cy="18" r="3" fill="currentColor"/>
+                            <line x1="8" y1="11" x2="16" y2="7" stroke="currentColor" strokeWidth="1.5"/>
+                            <line x1="8" y1="13" x2="16" y2="17" stroke="currentColor" strokeWidth="1.5"/>
+                          </svg>
                           <p className="text-xs text-ink/40">
                             Click any node to inspect its commit details
                           </p>

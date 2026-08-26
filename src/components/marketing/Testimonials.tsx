@@ -11,7 +11,7 @@ const testimonials = [
     name: "Alex Chen",
     role: "Founder, Finch",
     initials: "AC",
-    color: "#6248ff",
+    color: "#8B5CF6",
   },
   {
     quote:
@@ -19,7 +19,7 @@ const testimonials = [
     name: "Jordan Taylor",
     role: "Engineer, Rivet",
     initials: "JT",
-    color: "#0f0f0f",
+    color: "#6D28D9",
   },
   {
     quote:
@@ -27,7 +27,7 @@ const testimonials = [
     name: "Samir Patel",
     role: "Lead Dev, Mantle",
     initials: "SP",
-    color: "#6248ff",
+    color: "#8B5CF6",
   },
 ];
 

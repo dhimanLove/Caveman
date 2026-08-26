@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Clock } from "@phosphor-icons/react";
+import { IconClock as Clock } from "@/components/icons";
 
 function formatDuration(ms: number) {
   const total = Math.max(0, Math.floor(ms / 1000));

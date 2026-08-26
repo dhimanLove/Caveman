@@ -2,24 +2,24 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  Link as LinkIcon,
-  Warning,
-  MagnifyingGlass,
-  Check,
-  CircleNotch,
-  ArrowRight as ArrowRightIcon,
-  Download,
-  Copy,
-  FileCode,
-  SignOut,
-  CaretDown,
-  MagnifyingGlass as SearchIcon,
-  CaretUp,
-  Eye,
-  Code as CodeIcon,
-  PencilSimple,
-  Image,
-} from "@phosphor-icons/react";
+  IconLink as LinkIcon,
+  IconWarning as Warning,
+  IconMagnifyingGlass as MagnifyingGlass,
+  IconCheck as Check,
+  IconLoader as CircleNotch,
+  IconArrowRight as ArrowRightIcon,
+  IconDownload as Download,
+  IconCopy as Copy,
+  IconFileCode as FileCode,
+  IconLogOut as SignOut,
+  IconChevronDown as CaretDown,
+  IconMagnifyingGlass as SearchIcon,
+  IconChevronDown as CaretUp,
+  IconEye as Eye,
+  IconCode as CodeIcon,
+  IconPencil as PencilSimple,
+  IconDocument as Image,
+} from "@/components/icons";
 
 import { useAuth } from "@/hooks/useAuth";
 import { useGenerate } from "@/hooks/useGenerate";
@@ -170,7 +170,7 @@ function SectionPicker({
               ? "All sections"
               : `${selected.length} section${selected.length > 1 ? "s" : ""} selected`}
         </span>
-        {open ? <CaretUp size={10} /> : <CaretDown size={10} />}
+        {open ? <CaretUp size={10} className="rotate-180" /> : <CaretDown size={10} />}
       </button>
       {open && (
         <motion.div
@@ -204,7 +204,7 @@ function SectionPicker({
                   <div
                     className={`w-3.5 h-3.5 rounded-[4px] border flex items-center justify-center shrink-0 transition-colors ${active ? "bg-electric-iris border-electric-iris" : "border-ink/30"}`}
                   >
-                    {active && <Check size={9} weight="bold" className="text-white" />}
+                    {active && <Check size={9} className="text-white" />}
                   </div>
                   <span className={active ? "text-ink font-medium" : "text-ink/60"}>{s}</span>
                 </button>
@@ -534,7 +534,7 @@ function AuthenticatedApp({ user, onSignOut }: { user: any; onSignOut: () => voi
             </motion.span>
           ) : (
             <span className="relative z-10 flex items-center gap-2">
-              <MagnifyingGlass size={13} weight="bold" /> Generate README{" "}
+              <MagnifyingGlass size={13} /> Generate README{" "}
               <ArrowRightIcon size={11} />
             </span>
           )}

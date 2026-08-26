@@ -215,7 +215,7 @@ async function buildRepoTree(
     const item = validItems[i];
     const depth = item.path.split("/").length - 1;
     const isDir = item.type === "tree";
-    const prefix = "  ".repeat(depth) + (isDir ? "📁 " : "📄 ");
+    const prefix = "  ".repeat(depth) + (isDir ? "□ " : "▪ ");
     const name = item.path.split("/").pop() || item.path;
     treeLines.push(prefix + name);
   }

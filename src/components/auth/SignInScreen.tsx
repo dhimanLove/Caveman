@@ -1,4 +1,4 @@
-import { ArrowRight, Warning, LockSimple } from "@phosphor-icons/react";
+import { IconArrowRight as ArrowRight, IconWarning as Warning, IconLock as LockSimple } from "@/components/icons";
 
 export function SignInScreen({ onSignIn, error }: { onSignIn: () => void; error?: string | null }) {
   return (
@@ -15,7 +15,7 @@ export function SignInScreen({ onSignIn, error }: { onSignIn: () => void; error?
           onClick={onSignIn}
           className="btn-primary w-full justify-center mt-8 h-11 text-sm gap-2"
         >
-          Continue with Google <ArrowRight size={15} weight="bold" />
+          Continue with Google <ArrowRight size={15} />
         </button>
         <div className="mt-4 flex items-start gap-2 rounded-lg border border-bone bg-paper p-3 text-left">
           <LockSimple size={13} className="shrink-0 mt-0.5 text-ink/60" />

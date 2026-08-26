@@ -2,7 +2,7 @@ import { useRef, useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
-import { Plus } from "@phosphor-icons/react";
+import { IconPlus as Plus } from "@/components/icons";
 
 gsap.registerPlugin(ScrollTrigger);
 
