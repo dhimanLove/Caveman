@@ -933,7 +933,6 @@ ${JSON.stringify({
       configuredModel,
       PRIMARY_MODEL,
       "openai/gpt-oss-20b",
-      "qwen/qwen3.6-27b",
     ]),
   );
 
