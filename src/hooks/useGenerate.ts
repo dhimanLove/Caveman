@@ -1,6 +1,6 @@
 import { useState, useCallback } from "react";
 import { useServerFn } from "@tanstack/react-start";
-import { auth } from "@/lib/firebase";
+import { auth, getAppCheckFrontendToken } from "@/lib/firebase";
 import { generateSecure } from "@/lib/generate.server";
 
 const STORAGE_KEY = "caveman_usage";
@@ -86,7 +86,13 @@ function classifyError(err: unknown): { message: string; cooldown: number } {
     try {
       const parsed = JSON.parse(rawMessage);
       if (typeof parsed.cooldownEnd === "number") {
-        return { message: "Daily limit reached. Try again later.", cooldown: parsed.cooldownEnd };
+        return {
+          message:
+            typeof parsed.message === "string"
+              ? parsed.message
+              : "Daily limit reached. Try again later.",
+          cooldown: parsed.cooldownEnd,
+        };
       }
     } catch {
       // not JSON, handle as plain text
@@ -102,7 +108,11 @@ function classifyError(err: unknown): { message: string; cooldown: number } {
   }
 
   // Timeout errors
-  if (rawMessage.includes("timeout") || rawMessage.includes("timed out") || (err as any)?.name === "AbortError") {
+  if (
+    rawMessage.includes("timeout") ||
+    rawMessage.includes("timed out") ||
+    (err as any)?.name === "AbortError"
+  ) {
     return { message: "Request timed out. Check your connection and try again.", cooldown: 0 };
   }
 
@@ -120,7 +130,11 @@ function classifyError(err: unknown): { message: string; cooldown: number } {
   }
 
   // Rate limit / cooldown errors
-  if (rawMessage.includes("Too many requests") || rawMessage.includes("rate limit") || rawMessage.includes("Rate limit")) {
+  if (
+    rawMessage.includes("Too many requests") ||
+    rawMessage.includes("rate limit") ||
+    rawMessage.includes("Rate limit")
+  ) {
     return { message: "Rate limited. Please wait before generating again.", cooldown: 0 };
   }
   if (rawMessage.includes("cooldown")) {
@@ -144,61 +158,80 @@ export function useGenerate() {
     };
   });
 
-  const generate = useCallback(async (input: GenerateInput) => {
-    setState((s) => ({ ...s, error: null, data: null, isPending: true }));
+  const generate = useCallback(
+    async (input: GenerateInput) => {
+      setState((s) => ({ ...s, error: null, data: null, isPending: true }));
 
-    try {
-      const user = auth.currentUser;
-      if (!user) {
-        setState({ data: null, error: "Not signed in. Please sign in to generate.", cooldownExpiry: 0, isPending: false });
-        return;
-      }
-
-      let token: string;
       try {
-        token = await user.getIdToken(true);
-      } catch {
-        setState({ data: null, error: "Failed to get authentication token. Please sign in again.", cooldownExpiry: 0, isPending: false });
-        return;
+        const user = auth.currentUser;
+        if (!user) {
+          setState({
+            data: null,
+            error: "Not signed in. Please sign in to generate.",
+            cooldownExpiry: 0,
+            isPending: false,
+          });
+          return;
+        }
+
+        let token: string;
+        try {
+          token = await user.getIdToken(true);
+        } catch {
+          setState({
+            data: null,
+            error: "Failed to get authentication token. Please sign in again.",
+            cooldownExpiry: 0,
+            isPending: false,
+          });
+          return;
+        }
+
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 180000);
+
+        const appCheckToken = await getAppCheckFrontendToken();
+
+        const result = await (fn as any)({
+          data: {
+            _token: token,
+            _appCheckToken: appCheckToken,
+            projectUrl: input.projectUrl || "",
+            description: input.description || "",
+            style: input.style || "standard",
+            sections: input.sections || ["Installation", "Usage", "License"],
+            tone: input.tone || "technical",
+          },
+        });
+
+        clearTimeout(timeout);
+
+        if (!result || !result.readme) {
+          setState({
+            data: null,
+            error: "Generation returned empty. Try again.",
+            cooldownExpiry: 0,
+            isPending: false,
+          });
+          return;
+        }
+
+        if (typeof result.remaining === "number") {
+          saveStoredUsage(result.remaining, result.cooldownEnd || 0);
+        }
+
+        setState({ data: result, error: null, cooldownExpiry: 0, isPending: false });
+        return result;
+      } catch (err: unknown) {
+        const { message, cooldown } = classifyError(err);
+        if (cooldown > 0) {
+          saveStoredUsage(0, cooldown);
+        }
+        setState({ data: null, error: message, cooldownExpiry: cooldown, isPending: false });
       }
-
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 120000);
-
-      const result = await (fn as any)({
-        data: {
-          _token: token,
-          projectUrl: input.projectUrl || "",
-          description: input.description || "",
-          style: input.style || "standard",
-          sections: input.sections || ["Installation", "Usage", "License"],
-          tone: input.tone || "technical",
-        },
-      });
-
-      clearTimeout(timeout);
-
-      if (!result || !result.readme) {
-        setState({ data: null, error: "Generation returned empty. Try again.", cooldownExpiry: 0, isPending: false });
-        return;
-      }
-
-      // Persist remaining count to localStorage so it survives page refresh
-      if (typeof result.remaining === "number") {
-        saveStoredUsage(result.remaining, result.cooldownEnd || 0);
-      }
-
-      setState({ data: result, error: null, cooldownExpiry: 0, isPending: false });
-      return result;
-    } catch (err: unknown) {
-      const { message, cooldown } = classifyError(err);
-      // Persist cooldown so it survives page refresh
-      if (cooldown > 0) {
-        saveStoredUsage(0, cooldown);
-      }
-      setState({ data: null, error: message, cooldownExpiry: cooldown, isPending: false });
-    }
-  }, [fn]);
+    },
+    [fn],
+  );
 
   const reset = useCallback(() => {
     clearStoredUsage();

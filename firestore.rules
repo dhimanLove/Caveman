@@ -1,15 +1,38 @@
 rules_version = '2';
 
 // Deploy with: firebase deploy --only firestore:rules
-// (requires firebase.json wiring or Firebase Console -> Firestore -> Rules)
+// (or upload via Firebase Console -> Firestore -> Rules)
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Usage quota documents: a signed-in user may READ only their own doc.
-    // All client writes are denied - the backend (Firebase Admin SDK)
-    // bypasses these rules and is the sole writer of usage docs.
+    // App-wide spend counter. Backend-only (Admin SDK); no client access.
+    match /usage/_global {
+      allow read, write: if false;
+    }
+
+    // Per-user rate-limit enforcement docs (10 req / 10h sliding window).
+    // The backend (Firebase Admin SDK) is the SOLE writer - it bypasses these
+    // rules. A signed-in user with a valid App Check token may read only
+    // their own document; client writes are denied unconditionally.
+    match /rateLimits/{uid} {
+      allow get: if request.auth != null
+        && request.auth.uid == uid
+        && request.app.check() == true;
+      allow list: if request.auth != null
+        && request.auth.uid == uid
+        && request.app.check() == true;
+      allow create, update, delete: if false;
+    }
+
+    // Legacy usage-view documents (kept for backward compatibility). Same
+    // ownership + App Check requirement; client writes denied.
     match /usage/{uid} {
-      allow get, list: if request.auth != null && request.auth.uid == uid;
+      allow get: if request.auth != null
+        && request.auth.uid == uid
+        && request.app.check() == true;
+      allow list: if request.auth != null
+        && request.auth.uid == uid
+        && request.app.check() == true;
       allow create, update, delete: if false;
     }
 

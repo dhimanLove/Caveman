@@ -4,7 +4,16 @@ import { ScrollTrigger } from "gsap/ScrollTrigger";
 
 gsap.registerPlugin(ScrollTrigger);
 
-const platforms = ["Vercel", "Netlify", "GitHub", "NPM", "Next.js", "Supabase", "Railway", "Fly.io"];
+const platforms = [
+  "Vercel",
+  "Netlify",
+  "GitHub",
+  "NPM",
+  "Next.js",
+  "Supabase",
+  "Railway",
+  "Fly.io",
+];
 
 export function LogoStrip() {
   const ref = useRef<HTMLElement>(null);

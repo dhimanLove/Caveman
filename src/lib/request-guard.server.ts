@@ -25,21 +25,49 @@ function normalizeHost(h: string | undefined): string {
   return (h || "").split(",")[0].trim().toLowerCase().replace(/:\d+$/, "");
 }
 
+function isLocalHost(host: string): boolean {
+  return (
+    host === "localhost" ||
+    host.startsWith("127.") ||
+    host === "0.0.0.0" ||
+    host === "[::1]" ||
+    host.endsWith(".localhost") ||
+    host.endsWith(".local")
+  );
+}
+
 /**
  * Allows requests whose Origin matches the serving Host (same-origin).
- * Non-browser clients / same-origin GETs may omit Origin entirely.
+ * Enforces HTTPS for non-local traffic in production (Vercel/Hosting terminate
+ * TLS; plain http is dropped). Non-browser clients / same-origin GETs may omit
+ * Origin entirely.
  */
 export function isSameOrigin(): boolean {
   const origin = getRequestHeader("origin");
+  const host = normalizeHost(getRequestHeader("x-forwarded-host") || getRequestHeader("host"));
+  const isLocal = isLocalHost(host);
+
+  // TLS enforcement (production only): reject non-HTTPS unless localhost.
+  if (!isLocal && process.env.NODE_ENV === "production") {
+    const proto = (getRequestHeader("x-forwarded-proto") || "").split(",")[0].trim().toLowerCase();
+    if (proto !== "https") return false;
+  }
+
   if (!origin) return true;
 
-  const host = normalizeHost(getRequestHeader("x-forwarded-host") || getRequestHeader("host"));
   let originHost = "";
+  let secure = false;
   try {
-    originHost = normalizeHost(new URL(origin).host);
+    const u = new URL(origin);
+    originHost = normalizeHost(u.host);
+    secure = u.protocol === "https:";
   } catch {
     return false;
   }
+
+  // Non-local browser origins must arrive over HTTPS.
+  if (!isLocal && !secure && !ALLOWED_EXTRA.includes(originHost)) return false;
+
   return !host || originHost === host || ALLOWED_EXTRA.includes(originHost);
 }
 
@@ -57,12 +85,28 @@ interface IpWindow {
 const ipStore = new Map<string, IpWindow>();
 
 const LIMITS: Record<string, { perDay: number; perHour: number }> = {
-  generate: { perDay: 25, perHour: 8 },
+  generate: { perDay: 25, perHour: 12 },
   graph: { perDay: 60, perHour: 30 },
 };
 
+/** Whether an IP is usable for per-IP limiting. Unknown/missing IPs must NOT
+ *  share one global bucket - that would lock out every user behind a proxy or
+ *  serverless host that doesn't forward client IPs. The UID quota remains the
+ *  real gate; per-IP is just defense-in-depth. */
+function isUsableIp(ip: string): boolean {
+  return !!ip && ip.trim() !== "" && ip !== "unknown" && ip !== "::1" && !ip.startsWith("127.");
+}
+
+export interface IpLimitResult {
+  allowed: boolean;
+  /** Epoch ms when the per-IP allowance resets; 0 when not limited. */
+  cooldownEnd: number;
+}
+
 /** Fixed-window per-IP counter. Secondary layer only (per-instance). */
-export function checkIpLimit(ip: string, scope: keyof typeof LIMITS): boolean {
+export function checkIpLimit(ip: string, scope: keyof typeof LIMITS): IpLimitResult {
+  if (!isUsableIp(ip)) return { allowed: true, cooldownEnd: 0 };
+
   const limit = LIMITS[scope];
   const now = Date.now();
   const key = `${scope}:${pseudonymize(ip)}`;
@@ -81,14 +125,105 @@ export function checkIpLimit(ip: string, scope: keyof typeof LIMITS): boolean {
     w.hourCount = 0;
   }
 
-  if (w.dayCount >= limit.perDay || w.hourCount >= limit.perHour) {
+  if (w.dayCount >= limit.perDay) {
     console.warn(
       JSON.stringify({ type: "ip_limit_denied", scope, ipHash: key, ts: new Date().toISOString() }),
     );
-    return false;
+    return { allowed: false, cooldownEnd: w.dayStart + 24 * 60 * 60 * 1000 };
+  }
+  if (w.hourCount >= limit.perHour) {
+    console.warn(
+      JSON.stringify({ type: "ip_limit_denied", scope, ipHash: key, ts: new Date().toISOString() }),
+    );
+    return { allowed: false, cooldownEnd: w.hourStart + 60 * 60 * 1000 };
   }
 
   w.dayCount += 1;
   w.hourCount += 1;
-  return true;
+  return { allowed: true, cooldownEnd: 0 };
+}
+
+/** Reverses one checkIpLimit() increment when the generation itself failed.
+ *  Prevents failed attempts (AI rate limits, timeouts, invalid input) from
+ *  permanently eating the per-IP allowance and locking out real users. */
+export function refundIpLimit(ip: string, scope: keyof typeof LIMITS): void {
+  if (!isUsableIp(ip)) return;
+  const key = `${scope}:${pseudonymize(ip)}`;
+  const w = ipStore.get(key);
+  if (!w) return;
+  if (w.dayCount > 0) w.dayCount -= 1;
+  if (w.hourCount > 0) w.hourCount -= 1;
+}
+
+// ---------------------------------------------------------------------------
+// AUTH BRUTE-FORCE SHIELD - separate from the generation quota. Bounds how many
+// FAILED token-verification attempts an IP may make before being blocked for
+// the hour. Successful verifications reset the counter.
+// ---------------------------------------------------------------------------
+
+const AUTH_MAX_FAILURES = 30;
+const AUTH_WINDOW_MS = 60 * 60 * 1000;
+
+interface AuthFailure {
+  count: number;
+  windowStart: number;
+}
+const authFails = new Map<string, AuthFailure>();
+
+export interface AuthGateResult {
+  blocked: boolean;
+  /** Epoch ms when the block lifts; 0 while allowed. */
+  retryAfter: number;
+}
+
+function authKey(ip: string): string {
+  return `auth:${pseudonymize(ip)}`;
+}
+
+function logAuthAbuse(key: string, reason: string, retryAfter: number): void {
+  console.warn(
+    JSON.stringify({
+      type: "auth_bruteforce_blocked",
+      action: "auth",
+      ipHash: key,
+      retryAfter,
+      ts: new Date().toISOString(),
+    }),
+  );
+}
+
+export function checkAuthBruteForce(ip: string): AuthGateResult {
+  if (!isUsableIp(ip)) return { blocked: false, retryAfter: 0 };
+  const key = authKey(ip);
+  const entry = authFails.get(key);
+  if (!entry) return { blocked: false, retryAfter: 0 };
+
+  const now = Date.now();
+  if (now - entry.windowStart >= AUTH_WINDOW_MS) {
+    authFails.delete(key);
+    return { blocked: false, retryAfter: 0 };
+  }
+  if (entry.count >= AUTH_MAX_FAILURES) {
+    const retryAfter = entry.windowStart + AUTH_WINDOW_MS;
+    logAuthAbuse(key, "failure_cap", retryAfter);
+    return { blocked: true, retryAfter };
+  }
+  return { blocked: false, retryAfter: 0 };
+}
+
+export function recordAuthFailure(ip: string): void {
+  if (!isUsableIp(ip)) return;
+  const key = authKey(ip);
+  const now = Date.now();
+  const entry = authFails.get(key);
+  if (!entry || now - entry.windowStart >= AUTH_WINDOW_MS) {
+    authFails.set(key, { count: 1, windowStart: now });
+  } else {
+    entry.count += 1;
+  }
+}
+
+export function clearAuthFailures(ip: string): void {
+  if (!isUsableIp(ip)) return;
+  authFails.delete(authKey(ip));
 }

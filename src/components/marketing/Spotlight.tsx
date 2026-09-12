@@ -87,7 +87,7 @@ export function Spotlight() {
           >
             READMEs that actually look good
           </h2>
-         <p className="mt-5 text-lg text-fog leading-relaxed max-w-2xl mx-auto">
+          <p className="mt-5 text-lg text-fog leading-relaxed max-w-2xl mx-auto">
             No template filler. Every section is written from your actual source code.
           </p>
         </div>

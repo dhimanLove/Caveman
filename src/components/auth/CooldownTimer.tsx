@@ -26,9 +26,10 @@ export function CooldownTimer({ cooldownEnd }: { cooldownEnd: number }) {
       <div className="w-12 h-12 rounded-[4px] bg-cream border border-bone flex items-center justify-center mb-4 mx-auto">
         <Clock size={20} className="text-ink" />
       </div>
-      <h3 className="text-lg font-light text-ink">Daily limit reached</h3>
+      <h3 className="text-lg font-light text-ink">Generation limit reached</h3>
       <p className="mt-1.5 text-sm text-ink/60 max-w-xs leading-relaxed mx-auto">
-        You've used all 10 generations for today. Your limit resets in:
+        You've used all 10 generations in this 10-hour window. Your next generation becomes
+        available in:
       </p>
       <div className="mt-4 font-mono text-2xl font-medium text-ink tracking-wider">
         {formatDuration(remaining)}

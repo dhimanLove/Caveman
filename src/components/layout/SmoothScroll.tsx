@@ -1,14 +1,17 @@
 import { useEffect, type ReactNode } from "react";
+import { useLocation } from "@tanstack/react-router";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 
 gsap.registerPlugin(ScrollTrigger);
 
 export function SmoothScroll({ children }: { children: ReactNode }) {
+  const location = useLocation();
+
   useEffect(() => {
     if (typeof window === "undefined") return;
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-    if (window.location.pathname.startsWith("/generate")) return;
+    if (location.pathname.startsWith("/generate")) return;
 
     let lenis: any = null;
     let rafId = 0;
@@ -39,7 +42,7 @@ export function SmoothScroll({ children }: { children: ReactNode }) {
       cancelAnimationFrame(rafId);
       lenis?.destroy();
     };
-  }, []);
+  }, [location.pathname]);
 
   return <>{children}</>;
 }

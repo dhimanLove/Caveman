@@ -24,10 +24,7 @@ export const getRouter = () => {
               <p className="text-sm text-fog mb-4">
                 {error instanceof Error ? error.message : "An unexpected error occurred."}
               </p>
-              <button
-                onClick={() => window.location.reload()}
-                className="btn-primary"
-              >
+              <button onClick={() => window.location.reload()} className="btn-primary">
                 Reload page
               </button>
             </div>

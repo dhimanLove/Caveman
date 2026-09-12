@@ -18,7 +18,6 @@ import {
   IconEye as Eye,
   IconCode as CodeIcon,
   IconPencil as PencilSimple,
-  IconDocument as Image,
 } from "@/components/icons";
 
 import { useAuth } from "@/hooks/useAuth";
@@ -242,7 +241,9 @@ function getStoredRemaining(): number {
       if (typeof parsed.remaining === "number" && parsed.cooldownEnd > Date.now()) return 0;
       if (typeof parsed.remaining === "number") return parsed.remaining;
     }
-  } catch {}
+  } catch {
+    /* corrupt localStorage - fall through to default */
+  }
   return 10;
 }
 
@@ -289,12 +290,9 @@ function AuthenticatedApp({ user, onSignOut }: { user: any; onSignOut: () => voi
   const [sections, setSections] = useState<string[]>(ALL_SECTIONS);
   const [view, setView] = useState<"preview" | "raw" | "edit">("preview");
   const [copied, setCopied] = useState(false);
-  const [copyError, setCopyError] = useState("");
-  const [downloadError, setDownloadError] = useState("");
   const [editableReadme, setEditableReadme] = useState("");
   const [loadMsgIdx, setLoadMsgIdx] = useState(0);
   const [elapsed, setElapsed] = useState(0);
-  const [leftOpen, setLeftOpen] = useState(true);
   const [mobileOpen, setMobileOpen] = useState(false);
 
   const { isPending, data, error, cooldownExpiry, generate } = useGenerate();
@@ -324,12 +322,11 @@ function AuthenticatedApp({ user, onSignOut }: { user: any; onSignOut: () => voi
     return () => clearInterval(tick);
   }, [isPending]);
 
-  // Fake-determinate progress toward ~47s average
-  const progressPct = Math.min(95, Math.floor((elapsed / 47) * 100));
+  // Fake-determinate progress toward ~90s average
+  const progressPct = Math.min(95, Math.floor((elapsed / 90) * 100));
 
   const onCopy = async () => {
     if (!readme) return;
-    setCopyError("");
     try {
       if (navigator.clipboard && navigator.clipboard.writeText) {
         await navigator.clipboard.writeText(editableReadme || readme);
@@ -347,14 +344,11 @@ function AuthenticatedApp({ user, onSignOut }: { user: any; onSignOut: () => voi
       setTimeout(() => setCopied(false), 2000);
     } catch (err) {
       console.error("Copy failed:", err);
-      setCopyError("Failed to copy to clipboard");
-      setTimeout(() => setCopyError(""), 3000);
     }
   };
 
   const onDownload = () => {
     if (!readme) return;
-    setDownloadError("");
     try {
       const blob = new Blob([editableReadme || readme], { type: "text/markdown" });
       const a = document.createElement("a");
@@ -368,8 +362,6 @@ function AuthenticatedApp({ user, onSignOut }: { user: any; onSignOut: () => voi
       }, 100);
     } catch (err) {
       console.error("Download failed:", err);
-      setDownloadError("Failed to download file");
-      setTimeout(() => setDownloadError(""), 3000);
     }
   };
 
@@ -534,8 +526,7 @@ function AuthenticatedApp({ user, onSignOut }: { user: any; onSignOut: () => voi
             </motion.span>
           ) : (
             <span className="relative z-10 flex items-center gap-2">
-              <MagnifyingGlass size={13} /> Generate README{" "}
-              <ArrowRightIcon size={11} />
+              <MagnifyingGlass size={13} /> Generate README <ArrowRightIcon size={11} />
             </span>
           )}
         </Button>
@@ -638,11 +629,11 @@ function AuthenticatedApp({ user, onSignOut }: { user: any; onSignOut: () => voi
             >
               {/* Sidebar - desktop */}
               <div className="hidden lg:flex flex-col w-[280px] shrink-0 border-r border-bone bg-paper overflow-y-auto">
-                {leftOpen && sidebarContent}
+                {sidebarContent}
               </div>
 
               {/* Main content */}
-              <div className="flex-1 flex flex-col min-w-0 bg-paper min-h-0 overflow-y-auto">
+              <div className="flex-1 flex flex-col min-w-0 bg-paper min-h-0 overflow-hidden">
                 {isPending && (
                   <div className="px-4 py-3 border-b border-bone bg-paper shrink-0">
                     <div className="flex items-center gap-3">
@@ -658,7 +649,7 @@ function AuthenticatedApp({ user, onSignOut }: { user: any; onSignOut: () => voi
                         </motion.span>
                       </div>
                       <span className="text-[10px] text-ink/40 shrink-0 tabular-nums">
-                        {elapsed}s · ~{Math.max(1, 47 - elapsed)}s left
+                        {elapsed}s · ~{Math.max(1, 90 - elapsed)}s left
                       </span>
                     </div>
                     <div className="mt-2.5 h-1 bg-bone rounded-full overflow-hidden">
@@ -692,7 +683,7 @@ function AuthenticatedApp({ user, onSignOut }: { user: any; onSignOut: () => voi
                 )}
 
                 {readme && (
-                  <div className="flex flex-col">
+                  <div className="flex flex-col flex-1 min-h-0">
                     {/* Toolbar */}
                     <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between px-4 sm:px-5 py-3 border-b border-bone bg-paper shrink-0">
                       <div className="flex items-center gap-2">
@@ -750,7 +741,11 @@ function AuthenticatedApp({ user, onSignOut }: { user: any; onSignOut: () => voi
                     </div>
 
                     {/* README content */}
-                    <div className="px-5 py-6">
+                    <div
+                      className="px-5 py-6 flex-1 min-h-0 overflow-y-auto readme-scroll"
+                      data-lenis-prevent
+                      tabIndex={0}
+                    >
                       <AnimatePresence mode="wait">
                         <motion.div
                           key={view}
@@ -758,6 +753,7 @@ function AuthenticatedApp({ user, onSignOut }: { user: any; onSignOut: () => voi
                           animate={{ opacity: 1 }}
                           exit={{ opacity: 0 }}
                           transition={{ duration: 0.15 }}
+                          className="min-h-full"
                         >
                           {view === "preview" ? (
                             <div className="border border-bone rounded-2xl bg-paper overflow-hidden">
@@ -772,15 +768,16 @@ function AuthenticatedApp({ user, onSignOut }: { user: any; onSignOut: () => voi
                               </div>
                             </div>
                           ) : view === "raw" ? (
-                            <pre className="whitespace-pre-wrap font-mono text-sm text-ink leading-relaxed max-w-none">
+                            <pre className="whitespace-pre-wrap font-mono text-sm text-ink leading-relaxed max-w-none p-2 select-text">
                               {editableReadme || readme}
                             </pre>
                           ) : (
                             <textarea
                               value={editableReadme}
                               onChange={(e) => setEditableReadme(e.target.value)}
-                              className="w-full min-h-[400px] font-mono text-sm text-ink leading-relaxed bg-paper outline-none resize-none py-4 border-0 focus:ring-0"
+                              className="w-full min-h-[500px] font-mono text-sm text-ink leading-relaxed bg-paper outline-none resize-none py-4 border-0 focus:ring-0"
                               spellCheck={false}
+                              data-lenis-prevent
                             />
                           )}
                         </motion.div>

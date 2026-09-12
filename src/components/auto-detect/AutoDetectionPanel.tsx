@@ -1,6 +1,14 @@
 import { useState, useEffect, useRef } from "react";
 import { motion } from "framer-motion";
-import { IconChevronDown as ChevronDown, IconFileCode as FileCode, IconComponent as Component, IconZap as Zap, IconDatabase as Database, IconPencil as PencilLine, IconCode as Code } from "@/components/icons";
+import {
+  IconChevronDown as ChevronDown,
+  IconFileCode as FileCode,
+  IconComponent as Component,
+  IconZap as Zap,
+  IconDatabase as Database,
+  IconPencil as PencilLine,
+  IconCode as Code,
+} from "@/components/icons";
 import { cn } from "@/lib/utils";
 
 interface Discovery {

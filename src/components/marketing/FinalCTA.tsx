@@ -39,12 +39,13 @@ export function FinalCTA() {
         </p>
 
         <div className="cta-item mt-10 flex items-center justify-center gap-4 flex-wrap">
-          <Link to="/generate" search={{ url: undefined }} className="btn-primary h-12 px-8 text-base group">
+          <Link
+            to="/generate"
+            search={{ url: undefined }}
+            className="btn-primary h-12 px-8 text-base group"
+          >
             Generate Your README
-            <ArrowRight
-              size={16}
-              className="group-hover:translate-x-1 transition-transform"
-            />
+            <ArrowRight size={16} className="group-hover:translate-x-1 transition-transform" />
           </Link>
           <a href="/#how" className="btn-outline h-12 px-8 text-base">
             See How It Works

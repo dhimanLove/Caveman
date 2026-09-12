@@ -98,12 +98,7 @@ function GraphPage() {
             { opacity: 1, y: 0, filter: "blur(0px)", duration: 0.9, stagger: 0.08 },
             "-=0.4",
           )
-          .fromTo(
-            ".graph-sub",
-            { opacity: 0, y: 20 },
-            { opacity: 1, y: 0, duration: 0.7 },
-            "-=0.5",
-          )
+          .fromTo(".graph-sub", { opacity: 0, y: 20 }, { opacity: 1, y: 0, duration: 0.7 }, "-=0.5")
           .fromTo(
             ".graph-input-wrap",
             { opacity: 0, y: 20, scale: 0.97 },
@@ -201,20 +196,95 @@ function GraphPage() {
                     <circle cx="52" cy="44" r="5" fill="currentColor" opacity="0.8" />
                     <circle cx="32" cy="52" r="5" fill="currentColor" opacity="0.7" />
                     <circle cx="32" cy="32" r="7" fill="var(--color-electric-iris)" />
-                    <line x1="16" y1="30" x2="27" y2="14" stroke="currentColor" strokeWidth="1.5" opacity="0.4" />
-                    <line x1="35" y1="14" x2="48" y2="19" stroke="currentColor" strokeWidth="1.5" opacity="0.4" />
-                    <line x1="52" y1="25" x2="52" y2="40" stroke="currentColor" strokeWidth="1.5" opacity="0.4" />
-                    <line x1="48" y1="44" x2="35" y2="51" stroke="currentColor" strokeWidth="1.5" opacity="0.4" />
-                    <line x1="29" y1="52" x2="16" y2="35" stroke="currentColor" strokeWidth="1.5" opacity="0.4" />
-                    <line x1="16" y1="32" x2="27" y2="32" stroke="currentColor" strokeWidth="1.5" opacity="0.3" />
-                    <line x1="37" y1="32" x2="48" y2="22" stroke="currentColor" strokeWidth="1.5" opacity="0.3" />
-                    <line x1="37" y1="32" x2="48" y2="42" stroke="currentColor" strokeWidth="1.5" opacity="0.3" />
-                    <line x1="27" y1="32" x2="32" y2="48" stroke="currentColor" strokeWidth="1.5" opacity="0.3" />
+                    <line
+                      x1="16"
+                      y1="30"
+                      x2="27"
+                      y2="14"
+                      stroke="currentColor"
+                      strokeWidth="1.5"
+                      opacity="0.4"
+                    />
+                    <line
+                      x1="35"
+                      y1="14"
+                      x2="48"
+                      y2="19"
+                      stroke="currentColor"
+                      strokeWidth="1.5"
+                      opacity="0.4"
+                    />
+                    <line
+                      x1="52"
+                      y1="25"
+                      x2="52"
+                      y2="40"
+                      stroke="currentColor"
+                      strokeWidth="1.5"
+                      opacity="0.4"
+                    />
+                    <line
+                      x1="48"
+                      y1="44"
+                      x2="35"
+                      y2="51"
+                      stroke="currentColor"
+                      strokeWidth="1.5"
+                      opacity="0.4"
+                    />
+                    <line
+                      x1="29"
+                      y1="52"
+                      x2="16"
+                      y2="35"
+                      stroke="currentColor"
+                      strokeWidth="1.5"
+                      opacity="0.4"
+                    />
+                    <line
+                      x1="16"
+                      y1="32"
+                      x2="27"
+                      y2="32"
+                      stroke="currentColor"
+                      strokeWidth="1.5"
+                      opacity="0.3"
+                    />
+                    <line
+                      x1="37"
+                      y1="32"
+                      x2="48"
+                      y2="22"
+                      stroke="currentColor"
+                      strokeWidth="1.5"
+                      opacity="0.3"
+                    />
+                    <line
+                      x1="37"
+                      y1="32"
+                      x2="48"
+                      y2="42"
+                      stroke="currentColor"
+                      strokeWidth="1.5"
+                      opacity="0.3"
+                    />
+                    <line
+                      x1="27"
+                      y1="32"
+                      x2="32"
+                      y2="48"
+                      stroke="currentColor"
+                      strokeWidth="1.5"
+                      opacity="0.3"
+                    />
                   </svg>
                 </div>
               </div>
 
-              <h1 className="editorial-display text-ink" style={{ fontSize: "clamp(36px,5vw,56px)", lineHeight: 1.1 }}>
+              <h1
+                className="editorial-display text-ink"
+                style={{ fontSize: "clamp(36px,5vw,56px)", lineHeight: 1.1 }}
+              >
                 <span className="graph-title-word block">Commit</span>
                 <span className="graph-title-word block">
                   <span className="gradient-text font-normal">Graph</span>
@@ -248,11 +318,7 @@ function GraphPage() {
                     disabled={loading || !url.trim()}
                     className="btn-primary h-10 shrink-0 disabled:opacity-40 !px-4 text-sm cursor-pointer"
                   >
-                    {loading ? (
-                      <CircleNotch size={15} className="animate-spin" />
-                    ) : (
-                      "Map it"
-                    )}
+                    {loading ? <CircleNotch size={15} className="animate-spin" /> : "Map it"}
                   </button>
                 </div>
 
@@ -339,10 +405,26 @@ function GraphPage() {
                           <circle cx="5" cy="12" r="3" fill="currentColor" />
                           <circle cx="19" cy="6" r="3" fill="currentColor" />
                           <circle cx="19" cy="18" r="3" fill="currentColor" />
-                          <line x1="8" y1="11" x2="16" y2="7" stroke="currentColor" strokeWidth="1.5" />
-                          <line x1="8" y1="13" x2="16" y2="17" stroke="currentColor" strokeWidth="1.5" />
+                          <line
+                            x1="8"
+                            y1="11"
+                            x2="16"
+                            y2="7"
+                            stroke="currentColor"
+                            strokeWidth="1.5"
+                          />
+                          <line
+                            x1="8"
+                            y1="13"
+                            x2="16"
+                            y2="17"
+                            stroke="currentColor"
+                            strokeWidth="1.5"
+                          />
                         </svg>
-                        <p className="text-xs text-fog">Click any node to inspect its commit details</p>
+                        <p className="text-xs text-fog">
+                          Click any node to inspect its commit details
+                        </p>
                       </div>
                     )}
                   </div>
@@ -394,14 +476,76 @@ function GraphPage() {
                     <circle cx="125" cy="55" r="11" fill="currentColor" opacity="0.14" />
                     <circle cx="110" cy="110" r="9" fill="currentColor" opacity="0.11" />
                     <circle cx="40" cy="115" r="10" fill="currentColor" opacity="0.13" />
-                    <circle cx="75" cy="75" r="16" fill="var(--color-electric-iris)" opacity="0.25" />
-                    <line x1="35" y1="52" x2="65" y2="30" stroke="currentColor" strokeWidth="1.2" opacity="0.12" />
-                    <line x1="82" y1="30" x2="118" y2="50" stroke="currentColor" strokeWidth="1.2" opacity="0.12" />
-                    <line x1="122" y1="62" x2="115" y2="103" stroke="currentColor" strokeWidth="1.2" opacity="0.12" />
-                    <line x1="105" y1="112" x2="50" y2="114" stroke="currentColor" strokeWidth="1.2" opacity="0.12" />
-                    <line x1="33" y1="108" x2="30" y2="58" stroke="currentColor" strokeWidth="1.2" opacity="0.12" />
-                    <line x1="35" y1="52" x2="65" y2="68" stroke="currentColor" strokeWidth="0.8" opacity="0.08" />
-                    <line x1="85" y1="68" x2="118" y2="50" stroke="currentColor" strokeWidth="0.8" opacity="0.08" />
+                    <circle
+                      cx="75"
+                      cy="75"
+                      r="16"
+                      fill="var(--color-electric-iris)"
+                      opacity="0.25"
+                    />
+                    <line
+                      x1="35"
+                      y1="52"
+                      x2="65"
+                      y2="30"
+                      stroke="currentColor"
+                      strokeWidth="1.2"
+                      opacity="0.12"
+                    />
+                    <line
+                      x1="82"
+                      y1="30"
+                      x2="118"
+                      y2="50"
+                      stroke="currentColor"
+                      strokeWidth="1.2"
+                      opacity="0.12"
+                    />
+                    <line
+                      x1="122"
+                      y1="62"
+                      x2="115"
+                      y2="103"
+                      stroke="currentColor"
+                      strokeWidth="1.2"
+                      opacity="0.12"
+                    />
+                    <line
+                      x1="105"
+                      y1="112"
+                      x2="50"
+                      y2="114"
+                      stroke="currentColor"
+                      strokeWidth="1.2"
+                      opacity="0.12"
+                    />
+                    <line
+                      x1="33"
+                      y1="108"
+                      x2="30"
+                      y2="58"
+                      stroke="currentColor"
+                      strokeWidth="1.2"
+                      opacity="0.12"
+                    />
+                    <line
+                      x1="35"
+                      y1="52"
+                      x2="65"
+                      y2="68"
+                      stroke="currentColor"
+                      strokeWidth="0.8"
+                      opacity="0.08"
+                    />
+                    <line
+                      x1="85"
+                      y1="68"
+                      x2="118"
+                      y2="50"
+                      stroke="currentColor"
+                      strokeWidth="0.8"
+                      opacity="0.08"
+                    />
                   </svg>
                 </div>
 
@@ -420,12 +564,46 @@ function GraphPage() {
                     <circle cx="30" cy="70" r="8" fill="currentColor" opacity="0.6" />
                     <circle cx="30" cy="110" r="8" fill="currentColor" opacity="0.5" />
                     <circle cx="30" cy="150" r="8" fill="currentColor" opacity="0.4" />
-                    <line x1="30" y1="38" x2="30" y2="142" stroke="currentColor" strokeWidth="2" opacity="0.3" />
+                    <line
+                      x1="30"
+                      y1="38"
+                      x2="30"
+                      y2="142"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      opacity="0.3"
+                    />
                     <circle cx="80" cy="50" r="8" fill="var(--color-electric-iris)" opacity="0.6" />
                     <circle cx="80" cy="90" r="8" fill="currentColor" opacity="0.5" />
-                    <line x1="80" y1="58" x2="80" y2="82" stroke="currentColor" strokeWidth="2" opacity="0.3" />
-                    <line x1="38" y1="70" x2="72" y2="50" stroke="currentColor" strokeWidth="1.2" strokeDasharray="4 3" opacity="0.25" />
-                    <line x1="38" y1="110" x2="72" y2="90" stroke="currentColor" strokeWidth="1.2" strokeDasharray="4 3" opacity="0.2" />
+                    <line
+                      x1="80"
+                      y1="58"
+                      x2="80"
+                      y2="82"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      opacity="0.3"
+                    />
+                    <line
+                      x1="38"
+                      y1="70"
+                      x2="72"
+                      y2="50"
+                      stroke="currentColor"
+                      strokeWidth="1.2"
+                      strokeDasharray="4 3"
+                      opacity="0.25"
+                    />
+                    <line
+                      x1="38"
+                      y1="110"
+                      x2="72"
+                      y2="90"
+                      stroke="currentColor"
+                      strokeWidth="1.2"
+                      strokeDasharray="4 3"
+                      opacity="0.2"
+                    />
                   </svg>
                 </div>
 
@@ -444,11 +622,49 @@ function GraphPage() {
                     <circle cx="50" cy="25" r="12" fill="currentColor" opacity="0.07" />
                     <circle cx="80" cy="50" r="13" fill="currentColor" opacity="0.09" />
                     <circle cx="50" cy="75" r="11" fill="currentColor" opacity="0.06" />
-                    <line x1="32" y1="48" x2="40" y2="28" stroke="currentColor" strokeWidth="1.5" opacity="0.1" />
-                    <line x1="60" y1="28" x2="70" y2="48" stroke="currentColor" strokeWidth="1.5" opacity="0.1" />
-                    <line x1="78" y1="60" x2="58" y2="70" stroke="currentColor" strokeWidth="1.5" opacity="0.1" />
-                    <line x1="35" y1="60" x2="45" y2="70" stroke="currentColor" strokeWidth="1.5" opacity="0.1" />
-                    <circle cx="50" cy="50" r="6" fill="var(--color-electric-iris)" opacity="0.35" />
+                    <line
+                      x1="32"
+                      y1="48"
+                      x2="40"
+                      y2="28"
+                      stroke="currentColor"
+                      strokeWidth="1.5"
+                      opacity="0.1"
+                    />
+                    <line
+                      x1="60"
+                      y1="28"
+                      x2="70"
+                      y2="48"
+                      stroke="currentColor"
+                      strokeWidth="1.5"
+                      opacity="0.1"
+                    />
+                    <line
+                      x1="78"
+                      y1="60"
+                      x2="58"
+                      y2="70"
+                      stroke="currentColor"
+                      strokeWidth="1.5"
+                      opacity="0.1"
+                    />
+                    <line
+                      x1="35"
+                      y1="60"
+                      x2="45"
+                      y2="70"
+                      stroke="currentColor"
+                      strokeWidth="1.5"
+                      opacity="0.1"
+                    />
+                    <circle
+                      cx="50"
+                      cy="50"
+                      r="6"
+                      fill="var(--color-electric-iris)"
+                      opacity="0.35"
+                    />
                   </svg>
                 </div>
 
@@ -470,12 +686,60 @@ function GraphPage() {
                     <circle cx="55" cy="90" r="7" fill="currentColor" opacity="0.3" />
                     <circle cx="85" cy="90" r="7" fill="var(--color-electric-iris)" opacity="0.4" />
                     <circle cx="115" cy="90" r="7" fill="currentColor" opacity="0.35" />
-                    <line x1="65" y1="28" x2="44" y2="48" stroke="currentColor" strokeWidth="1.2" opacity="0.2" />
-                    <line x1="75" y1="28" x2="96" y2="48" stroke="currentColor" strokeWidth="1.2" opacity="0.2" />
-                    <line x1="36" y1="62" x2="28" y2="84" stroke="currentColor" strokeWidth="1" opacity="0.15" />
-                    <line x1="44" y1="62" x2="52" y2="84" stroke="currentColor" strokeWidth="1" opacity="0.15" />
-                    <line x1="96" y1="62" x2="88" y2="84" stroke="currentColor" strokeWidth="1" opacity="0.15" />
-                    <line x1="104" y1="62" x2="112" y2="84" stroke="currentColor" strokeWidth="1" opacity="0.15" />
+                    <line
+                      x1="65"
+                      y1="28"
+                      x2="44"
+                      y2="48"
+                      stroke="currentColor"
+                      strokeWidth="1.2"
+                      opacity="0.2"
+                    />
+                    <line
+                      x1="75"
+                      y1="28"
+                      x2="96"
+                      y2="48"
+                      stroke="currentColor"
+                      strokeWidth="1.2"
+                      opacity="0.2"
+                    />
+                    <line
+                      x1="36"
+                      y1="62"
+                      x2="28"
+                      y2="84"
+                      stroke="currentColor"
+                      strokeWidth="1"
+                      opacity="0.15"
+                    />
+                    <line
+                      x1="44"
+                      y1="62"
+                      x2="52"
+                      y2="84"
+                      stroke="currentColor"
+                      strokeWidth="1"
+                      opacity="0.15"
+                    />
+                    <line
+                      x1="96"
+                      y1="62"
+                      x2="88"
+                      y2="84"
+                      stroke="currentColor"
+                      strokeWidth="1"
+                      opacity="0.15"
+                    />
+                    <line
+                      x1="104"
+                      y1="62"
+                      x2="112"
+                      y2="84"
+                      stroke="currentColor"
+                      strokeWidth="1"
+                      opacity="0.15"
+                    />
                   </svg>
                 </div>
               </div>
@@ -490,8 +754,22 @@ function GraphPage() {
                           <circle cx="5" cy="12" r="3" fill="currentColor" />
                           <circle cx="19" cy="6" r="3" fill="currentColor" />
                           <circle cx="19" cy="18" r="3" fill="currentColor" />
-                          <line x1="8" y1="11" x2="16" y2="7" stroke="currentColor" strokeWidth="1.5" />
-                          <line x1="8" y1="13" x2="16" y2="17" stroke="currentColor" strokeWidth="1.5" />
+                          <line
+                            x1="8"
+                            y1="11"
+                            x2="16"
+                            y2="7"
+                            stroke="currentColor"
+                            strokeWidth="1.5"
+                          />
+                          <line
+                            x1="8"
+                            y1="13"
+                            x2="16"
+                            y2="17"
+                            stroke="currentColor"
+                            strokeWidth="1.5"
+                          />
                         </svg>
                       ),
                       label: "Elastic edges",
@@ -513,7 +791,14 @@ function GraphPage() {
                       icon: (
                         <svg viewBox="0 0 24 24" fill="none" className="w-5 h-5 text-electric-iris">
                           <circle cx="12" cy="12" r="3" fill="currentColor" />
-                          <circle cx="12" cy="12" r="8" stroke="currentColor" strokeWidth="1.5" strokeDasharray="3 2" />
+                          <circle
+                            cx="12"
+                            cy="12"
+                            r="8"
+                            stroke="currentColor"
+                            strokeWidth="1.5"
+                            strokeDasharray="3 2"
+                          />
                         </svg>
                       ),
                       label: "Click to inspect",
@@ -522,10 +807,7 @@ function GraphPage() {
                     {
                       icon: (
                         <svg viewBox="0 0 24 24" fill="none" className="w-5 h-5 text-electric-iris">
-                          <path
-                            d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"
-                            fill="currentColor"
-                          />
+                          <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" fill="currentColor" />
                         </svg>
                       ),
                       label: "Live physics",

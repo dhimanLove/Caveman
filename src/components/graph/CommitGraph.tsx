@@ -542,7 +542,7 @@ export function CommitGraph({
   );
 
   const handleMouseUp = useCallback(
-    (e: React.MouseEvent) => {
+    (_e: React.MouseEvent) => {
       cameraRef.current.panning = false;
       const node = mouseRef.current.dragNode;
       if (node) {

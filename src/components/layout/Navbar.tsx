@@ -126,7 +126,12 @@ export function Navbar() {
                   referrerPolicy="no-referrer"
                 />
               )}
-              <Link to="/generate" search={{ url: undefined }} className="circle-arrow" aria-label="Open README generator">
+              <Link
+                to="/generate"
+                search={{ url: undefined }}
+                className="circle-arrow"
+                aria-label="Open README generator"
+              >
                 <svg
                   width="16"
                   height="16"

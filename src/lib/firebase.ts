@@ -1,5 +1,11 @@
 import { initializeApp, getApps, type FirebaseOptions } from "firebase/app";
 import { getAuth, GoogleAuthProvider } from "firebase/auth";
+import {
+  initializeAppCheck,
+  ReCaptchaV3Provider,
+  getToken as getAppCheckRawToken,
+  type AppCheck,
+} from "firebase/app-check";
 
 const env = import.meta.env;
 
@@ -31,7 +37,9 @@ try {
   app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
 } catch (err) {
   console.error("[firebase] Initialization failed:", err);
-  throw new Error(`Firebase initialization failed: ${err instanceof Error ? err.message : "unknown error"}`);
+  throw new Error(
+    `Firebase initialization failed: ${err instanceof Error ? err.message : "unknown error"}`,
+  );
 }
 
 let auth: ReturnType<typeof getAuth>;
@@ -51,4 +59,32 @@ try {
   throw new Error("Failed to initialize Google sign-in provider.");
 }
 
-export { auth, googleProvider, app };
+// App Check (ReCaptcha v3). Needs VITE_RECAPTCHA_SITE_KEY; when absent (local
+// dev without a provisioned project) the provider is skipped and the frontend
+// sends no token — the server only enforces when ENFORCE_APP_CHECK=true.
+let appCheck: AppCheck | null = null;
+const recaptchaSiteKey = env.VITE_RECAPTCHA_SITE_KEY as string | undefined;
+if (recaptchaSiteKey) {
+  try {
+    appCheck = initializeAppCheck(app, {
+      provider: new ReCaptchaV3Provider(recaptchaSiteKey),
+      isTokenAutoRefreshEnabled: true,
+    });
+  } catch (err) {
+    console.error("[firebase] App Check initialization failed (App Check disabled):", err);
+    appCheck = null;
+  }
+}
+
+/** Returns an App Check attestation token, or "" when App Check is disabled. */
+export async function getAppCheckFrontendToken(): Promise<string> {
+  if (!appCheck) return "";
+  try {
+    const state = await getAppCheckRawToken(appCheck, false);
+    return state.token;
+  } catch {
+    return "";
+  }
+}
+
+export { auth, googleProvider };

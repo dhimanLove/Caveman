@@ -4,14 +4,22 @@ import {
   getUsage as memoryGetUsage,
 } from "./rate-limit.server";
 import { pseudonymize } from "./firebase-verify.server";
-import type { App } from "firebase-admin/app";
+import {
+  getUserDailyLimit,
+  getGlobalDailyCap,
+  dayKey,
+  USER_RATE_WINDOW_MS,
+} from "./rate-config.server";
+import { advanceWindow, windowState, refundWindow } from "./rate-window.server";
+import { getAdminApp } from "./firebase-admin.server";
 
 /**
  * Durable rate limiting.
  *
- * Primary store: Firestore transaction on usage/{uid} - atomic read-modify-write,
- * shared across all server instances, survives restarts and cold starts. The
- * same document is what the client's usage panel reads, so UI stays in sync.
+ * Primary store: Firestore transaction on rateLimits/{uid} - atomic
+ * read-modify-write, shared across all server instances, survives restarts and
+ * cold starts. The sliding-window core lives in rate-window.server.ts so the
+ * durable and in-memory backends stay identical.
  *
  * Fallback: per-instance in-memory limiter when Firebase Admin credentials are
  * not configured (logs a warning - resets on restart, not shared across pods).
@@ -21,21 +29,24 @@ import type { App } from "firebase-admin/app";
  *   or GOOGLE_APPLICATION_CREDENTIALS / platform workload identity
  */
 
-const WINDOW_MS = 24 * 60 * 60 * 1000;
-const COOLDOWN_MS = 10 * 60 * 60 * 1000;
-const MAX_COUNT = 10;
-const APP_NAME = "caveman-rate-limit";
+function maxCount(): number {
+  return getUserDailyLimit();
+}
 
 export interface QuotaResult {
   allowed: boolean;
   remaining: number;
+  /**
+   * Epoch ms when the allowance next opens (oldest request ages out of the
+   * rolling window). 0 while allowed. Also surfaced as `cooldownEnd` below for
+   * client compatibility.
+   */
+  resetAt: number;
   cooldownEnd: number;
 }
 
-interface UsageDoc {
-  count: number;
-  windowStart: number;
-  cooldownEnd: number;
+interface RateDoc {
+  timestamps: number[];
   lastGen: number;
 }
 
@@ -46,25 +57,10 @@ async function getDb(): Promise<import("firebase-admin/firestore").Firestore | n
   if (!dbPromise) {
     dbPromise = (async () => {
       try {
-        // firebase-admin ships CJS; dynamic import may wrap it under `default`
-        const appMod: any = await import("firebase-admin/app");
-        const app = appMod.default ?? appMod;
-
-        const credential = process.env.FIREBASE_SERVICE_ACCOUNT_JSON
-          ? app.cert(JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_JSON))
-          : app.applicationDefault();
-
-        const existingApp: App | undefined = app
-          .getApps()
-          .find((a: App) => a.name === APP_NAME);
-        const firebaseApp =
-          existingApp ?? app.initializeApp({ credential }, APP_NAME);
-
+        const adminApp = await getAdminApp();
         const fsMod: any = await import("firebase-admin/firestore");
         const fs = fsMod.default ?? fsMod;
-
-        console.log("[rate-limit] Durable Firestore quota store active");
-        return fs.getFirestore(firebaseApp) as import("firebase-admin/firestore").Firestore;
+        return fs.getFirestore(adminApp) as import("firebase-admin/firestore").Firestore;
       } catch (err) {
         console.warn(
           "[rate-limit] Firestore unavailable, falling back to in-memory quota. " +
@@ -78,44 +74,28 @@ async function getDb(): Promise<import("firebase-admin/firestore").Firestore | n
   return dbPromise;
 }
 
-/** Computes next quota state given current doc + server clock. Pure logic. */
-function advance(
-  record: UsageDoc | undefined,
-  now: number,
-): { record: UsageDoc; result: QuotaResult } {
-  let r: UsageDoc =
-    record && typeof record.count === "number" && typeof record.windowStart === "number"
-      ? record
-      : { count: 0, windowStart: now, cooldownEnd: 0, lastGen: 0 };
-
-  // Window expired (or clock skew) -> fresh start
-  if (now - r.windowStart >= WINDOW_MS || r.windowStart > now) {
-    r = { count: 0, windowStart: now, cooldownEnd: 0, lastGen: r.lastGen };
-  }
-
-  // Active cooldown
-  if (r.cooldownEnd > now) {
-    return { record: r, result: { allowed: false, remaining: 0, cooldownEnd: r.cooldownEnd } };
-  }
-
-  // Cap reached -> start cooldown
-  if (r.count >= MAX_COUNT) {
-    r.cooldownEnd = now + COOLDOWN_MS;
-    return { record: r, result: { allowed: false, remaining: 0, cooldownEnd: r.cooldownEnd } };
-  }
-
-  r.count += 1;
-  r.lastGen = now;
-  return { record: r, result: { allowed: true, remaining: MAX_COUNT - r.count, cooldownEnd: 0 } };
-}
-
 export function logDenial(uid: string, durable: boolean): void {
   // Structured abuse signal for monitoring/alerting. UID pseudonymized.
   console.warn(
     JSON.stringify({
       type: "rate_limit_denied",
+      action: "generate",
       store: durable ? "firestore" : "memory",
       uidHash: pseudonymize(uid),
+      ts: new Date().toISOString(),
+    }),
+  );
+}
+
+/** One-line JSON log for each completed generation (quota-consumption monitor). */
+export function logGeneration(uid: string, ok: boolean, ms: number): void {
+  console.log(
+    JSON.stringify({
+      type: "generation",
+      action: "generate",
+      ok,
+      uidHash: pseudonymize(uid),
+      ms: Math.round(ms),
       ts: new Date().toISOString(),
     }),
   );
@@ -127,19 +107,24 @@ export async function consumeQuota(uid: string): Promise<QuotaResult> {
   if (!db) {
     const res = memoryCheck(uid);
     if (!res.allowed) logDenial(uid, false);
-    return res;
+    return { ...res, resetAt: res.cooldownEnd || 0 };
   }
 
-  const ref = db.collection("usage").doc(uid);
+  const ref = db.collection("rateLimits").doc(uid);
 
   try {
     const result = (await db.runTransaction(async (tx: any) => {
       const snap = await tx.get(ref);
       const now = Date.now();
-      const current = snap.exists ? (snap.data() as UsageDoc) : undefined;
-      const { record, result } = advance(current, now);
-      tx.set(ref, record);
-      return result;
+      const current = snap.exists ? (snap.data() as RateDoc) : undefined;
+      const windowed = advanceWindow(current?.timestamps, now, maxCount(), USER_RATE_WINDOW_MS);
+      tx.set(ref, { timestamps: windowed.timestamps, lastGen: current?.lastGen ?? now });
+      return {
+        allowed: windowed.allowed,
+        remaining: windowed.remaining,
+        resetAt: windowed.resetAt,
+        cooldownEnd: windowed.resetAt,
+      } satisfies QuotaResult;
     })) as QuotaResult;
 
     if (!result.allowed) logDenial(uid, true);
@@ -151,26 +136,36 @@ export async function consumeQuota(uid: string): Promise<QuotaResult> {
     );
     const res = memoryCheck(uid);
     if (!res.allowed) logDenial(uid, false);
-    return res;
+    return { ...res, resetAt: res.cooldownEnd || 0 };
   }
 }
 
 export async function refundQuota(uid: string): Promise<void> {
-  const db = await getDb();
+  let db: import("firebase-admin/firestore").Firestore | null;
+  try {
+    db = await getDb();
+  } catch (err) {
+    // Never let a refund failure bubble up — it must not block or mask the
+    // original generation result. Fall back to the in-memory decrement.
+    console.warn("[rate-limit] Refund getDb failed:", err instanceof Error ? err.message : err);
+    db = null;
+  }
   if (!db) {
     memoryDecrement(uid);
     return;
   }
 
-  const ref = db.collection("usage").doc(uid);
+  const ref = db.collection("rateLimits").doc(uid);
 
   try {
     await db.runTransaction(async (tx: any) => {
       const snap = await tx.get(ref);
       if (!snap.exists) return;
-      const d = snap.data() as UsageDoc;
-      if (d.count > 0) d.count -= 1;
-      tx.set(ref, d);
+      const d = snap.data() as RateDoc;
+      if (Array.isArray(d.timestamps) && d.timestamps.length > 0) {
+        d.timestamps = refundWindow(d.timestamps);
+        tx.set(ref, d);
+      }
     });
   } catch (err) {
     console.warn("[rate-limit] Refund failed:", err instanceof Error ? err.message : err);
@@ -182,30 +177,133 @@ export async function readUsage(
   uid: string,
 ): Promise<{ count: number; remaining: number; windowStart: number; cooldownEnd: number }> {
   const db = await getDb();
-  if (!db) return memoryGetUsage(uid);
+  if (!db) {
+    const fallback = memoryGetUsage(uid);
+    return { ...fallback, cooldownEnd: fallback.cooldownEnd || 0 };
+  }
 
-  const ref = db.collection("usage").doc(uid);
+  const ref = db.collection("rateLimits").doc(uid);
 
   try {
     const snap = await ref.get();
-    const now = Date.now();
     if (!snap.exists) {
-      return { count: 0, remaining: MAX_COUNT, windowStart: 0, cooldownEnd: 0 };
+      return { count: 0, remaining: maxCount(), windowStart: 0, cooldownEnd: 0 };
     }
-    const d = snap.data() as UsageDoc;
-    if (d.cooldownEnd > now) {
-      return { count: d.count, remaining: 0, windowStart: d.windowStart, cooldownEnd: d.cooldownEnd };
-    }
-    if (now - d.windowStart >= WINDOW_MS) {
-      return { count: 0, remaining: MAX_COUNT, windowStart: 0, cooldownEnd: 0 };
-    }
-    return {
-      count: d.count,
-      remaining: Math.max(0, MAX_COUNT - d.count),
-      windowStart: d.windowStart,
-      cooldownEnd: 0,
-    };
+    const d = snap.data() as RateDoc;
+    return windowState(d.timestamps, Date.now(), maxCount(), USER_RATE_WINDOW_MS);
   } catch {
-    return memoryGetUsage(uid);
+    const fallback = memoryGetUsage(uid);
+    return { ...fallback, cooldownEnd: fallback.cooldownEnd || 0 };
+  }
+}
+
+// ---------------------------------------------------------------------------
+// GLOBAL DAILY CAP - app-wide quota across all users to bound total Groq spend.
+// Storage: usage/_global { day: "YYYY-MM-DD", count }. Same store/transaction
+// pattern as per-UID quota, so it is shared across instances when Firestore is
+// configured, and degrades to a per-instance in-memory counter otherwise.
+// ---------------------------------------------------------------------------
+
+interface GlobalDoc {
+  day: string;
+  count: number;
+}
+
+const _GLOBAL_UID = "_global";
+
+// In-memory fallback (per instance) - resets on restart.
+const globalMemory = new Map<string, number>();
+
+export interface GlobalCapResult {
+  allowed: boolean;
+  /** UTC calendar day key that is capped. */
+  day: string;
+  /** Count applied for this day. */
+  count: number;
+  /** When the cap is next open (next UTC midnight). 0 when allowed. */
+  resetAt: number;
+  cap: number;
+}
+
+function nextUtcMidnight(now: number): number {
+  const d = new Date(now);
+  const next = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate() + 1));
+  return next.getTime();
+}
+
+function globalMemoryResult(
+  allowed: boolean,
+  day: string,
+  count: number,
+  now: number,
+  cap: number,
+): GlobalCapResult {
+  return { allowed, day, count, cap, resetAt: allowed ? 0 : nextUtcMidnight(now) };
+}
+
+export async function consumeGlobalCap(): Promise<GlobalCapResult> {
+  const cap = getGlobalDailyCap();
+  const now = Date.now();
+  const day = dayKey(now);
+
+  const db = await getDb();
+  if (!db) {
+    const count = (globalMemory.get(day) ?? 0) + 1;
+    globalMemory.set(day, count);
+    console.log(
+      JSON.stringify({
+        type: "usage_daily",
+        day,
+        count,
+        cap,
+        store: "memory",
+        ts: new Date(now).toISOString(),
+      }),
+    );
+    return globalMemoryResult(count <= cap, day, count, now, cap);
+  }
+
+  const ref = db.collection("usage").doc(_GLOBAL_UID);
+  try {
+    const result = (await db.runTransaction(
+      async (tx: import("firebase-admin/firestore").Transaction) => {
+        const snap = await tx.get(ref);
+        const current = snap.exists ? (snap.data() as GlobalDoc) : undefined;
+        const count = current && current.day === day ? current.count : 0;
+        const next = count + 1;
+        tx.set(ref, { day, count: next });
+        console.log(
+          JSON.stringify({
+            type: "usage_daily",
+            day,
+            count: next,
+            cap,
+            store: "firestore",
+            ts: new Date(now).toISOString(),
+          }),
+        );
+        return globalMemoryResult(next <= cap, day, next, now, cap);
+      },
+    )) as GlobalCapResult;
+    if (!result.allowed) {
+      console.warn(
+        JSON.stringify({
+          type: "global_cap_denied",
+          day,
+          count: result.count,
+          cap,
+          ts: new Date(now).toISOString(),
+        }),
+      );
+    }
+    return result;
+  } catch (err) {
+    console.error(
+      "[rate-limit] Global cap transaction failed, using memory fallback:",
+      err instanceof Error ? err.message : err,
+    );
+    const count = (globalMemory.get(day) ?? 0) + 1;
+    globalMemory.set(day, count);
+    return globalMemoryResult(count <= cap, day, count, now, cap);
   }
 }

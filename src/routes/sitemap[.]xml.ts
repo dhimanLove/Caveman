@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import type {} from "@tanstack/react-start";
+import { isSameOrigin } from "@/lib/request-guard.server";
 
 const BASE_URL = "https://caveman-lilac.vercel.app";
 
@@ -7,6 +8,11 @@ export const Route = createFileRoute("/sitemap.xml")({
   server: {
     handlers: {
       GET: async () => {
+        // Same-origin guard. Crawler/browser GETs omit Origin and pass; a
+        // cross-origin client scraping the endpoint is rejected.
+        if (!isSameOrigin()) {
+          return new Response("Forbidden", { status: 403 });
+        }
         const entries = [
           { path: "/", changefreq: "monthly", priority: "1.0" },
           { path: "/generate", changefreq: "weekly", priority: "0.9" },

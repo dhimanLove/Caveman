@@ -25,7 +25,10 @@ function NotFoundComponent() {
           alt="Caveman logo"
           className="w-16 h-16 mx-auto rounded-[4px] border border-bone bg-paper object-contain p-1"
         />
-        <h1 className="mt-6 text-7xl font-light text-ink" style={{ fontFamily: "var(--font-relative)" }}>
+        <h1
+          className="mt-6 text-7xl font-light text-ink"
+          style={{ fontFamily: "var(--font-relative)" }}
+        >
           404
         </h1>
         <h2 className="mt-4 text-xl font-light text-ink">Page not found</h2>

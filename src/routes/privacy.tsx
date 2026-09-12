@@ -92,11 +92,11 @@ function PrivacyPage() {
 
           <h2 className="text-lg font-light text-ink">Your Rights (GDPR/CCPA/CPRA)</h2>
           <p>
-            You have the right to access, correct, and delete the personal data we hold about you, to
-            object to or restrict certain processing, and to data portability. California residents
-            have the right to know what personal information we collect and to opt out of any "sale"
-            or "sharing" of personal information - we do not sell or share your personal data. To
-            exercise any of these rights, email{" "}
+            You have the right to access, correct, and delete the personal data we hold about you,
+            to object to or restrict certain processing, and to data portability. California
+            residents have the right to know what personal information we collect and to opt out of
+            any "sale" or "sharing" of personal information - we do not sell or share your personal
+            data. To exercise any of these rights, email{" "}
             <a href="mailto:hello@caveman.dev" className="text-ink underline">
               hello@caveman.dev
             </a>{" "}

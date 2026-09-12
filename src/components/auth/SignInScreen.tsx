@@ -1,4 +1,8 @@
-import { IconArrowRight as ArrowRight, IconWarning as Warning, IconLock as LockSimple } from "@/components/icons";
+import {
+  IconArrowRight as ArrowRight,
+  IconWarning as Warning,
+  IconLock as LockSimple,
+} from "@/components/icons";
 
 export function SignInScreen({ onSignIn, error }: { onSignIn: () => void; error?: string | null }) {
   return (
@@ -20,8 +24,8 @@ export function SignInScreen({ onSignIn, error }: { onSignIn: () => void; error?
         <div className="mt-4 flex items-start gap-2 rounded-lg border border-bone bg-paper p-3 text-left">
           <LockSimple size={13} className="shrink-0 mt-0.5 text-ink/60" />
           <span className="text-xs text-ink/60 leading-relaxed">
-            Sign-in enables private repo access and tracks your daily generation limit (10 free per
-            day during early access).
+            Sign-in enables private repo access and tracks your generation limit (10 free per 10
+            hours during early access).
           </span>
         </div>
         {error && (

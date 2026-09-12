@@ -34,8 +34,8 @@ export const fetchCommitGraph = createServerFn({ method: "GET" })
       throw new Error("Invalid request.");
     }
 
-    // Secondary per-IP limit (public endpoint - no auth required)
-    if (!checkIpLimit(getClientIp(), "graph")) {
+    // Per-IP secondary limit (unauthenticated endpoint - primary abuse shield)
+    if (!checkIpLimit(getClientIp(), "graph").allowed) {
       throw new Error("Too many requests. Please try again later.");
     }
 

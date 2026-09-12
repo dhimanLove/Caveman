@@ -7,10 +7,7 @@ export function EarlyAccessBanner() {
   if (dismissed) return null;
 
   return (
-    <div
-      role="banner"
-      className="relative z-[60] bg-ink text-cream text-center"
-    >
+    <div role="banner" className="relative z-[60] bg-ink text-cream text-center">
       <div className="mx-auto max-w-[1200px] px-6 py-2 pr-14">
         <p className="text-xs font-light tracking-wide">
           <span className="hidden sm:inline font-medium">Caveman is free during early access.</span>
