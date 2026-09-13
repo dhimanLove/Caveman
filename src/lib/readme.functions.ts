@@ -194,6 +194,7 @@ async function fetchLanguages(owner: string, repo: string): Promise<Record<strin
 /** Manifest files consulted to derive dependencies, scripts, and configuration. */
 const ESSENTIAL_MANIFESTS = [
   "package.json",
+  "pubspec.yaml",
   "Cargo.toml",
   "pyproject.toml",
   "requirements.txt",
@@ -227,6 +228,8 @@ const ENTRY_POINTS = [
   "src/main.rs",
   "src/main.go",
   "src/main.py",
+  "lib/main.dart",
+  "lib/app.dart",
   "app.py",
   "main.py",
   "index.js",
@@ -240,7 +243,7 @@ const ENTRY_POINTS = [
 ];
 
 const SOURCE_EXT_RE =
-  /\.(ts|tsx|js|jsx|mjs|cjs|vue|svelte|py|go|rs|c|cpp|h|hpp|java|kt|rb|php|sh|css|scss|sql|json|toml|md)$/i;
+  /\.(ts|tsx|js|jsx|mjs|cjs|vue|svelte|dart|py|go|rs|c|cpp|h|hpp|java|kt|rb|php|sh|css|scss|sql|json|toml|md)$/i;
 
 const HIGH_SIGNAL_DIRS = [
   "src",
@@ -277,7 +280,7 @@ async function scanRepository(
 ): Promise<ScannedRepository> {
   const fetchedFiles = new Map<string, string>();
   let allFilePaths: string[] = [];
-  let packageManager = "npm";
+  let packageManager = "";
   let hasDocker = false;
   let hasTests = false;
   let hasCi = false;
@@ -307,32 +310,40 @@ async function scanRepository(
     // Tree API fallback
   }
 
-  if (allFilePaths.length === 0) {
-    allFilePaths = [...ESSENTIAL_MANIFESTS, ...ENTRY_POINTS];
-  }
+  // NOTE: when the Tree API is unavailable, allFilePaths stays EMPTY. We never
+  // inject WellKnown manifest/entry paths into it, because the language
+  // detector extrapolates languages from file extensions - guessing "the files
+  // exist" is exactly how a Flutter repo ends up tagged with Python/Rust/Go.
+  // Grounding below uses only files that were ACTUALLY fetched successfully.
 
   // Detect build tool / package manager. Lockfiles are the ground truth, but a
   // repository may legitimately ship several (e.g. package-lock.json + bun.lock),
-  // so never collapse that into a single manager assumption.
-  const joined = allFilePaths.map((p) => p.toLowerCase()).join("\n");
-  const jsManagers: string[] = [];
-  if (/pnpm-lock\.yaml/.test(joined)) jsManagers.push("pnpm");
-  if (/yarn\.lock/.test(joined)) jsManagers.push("yarn");
-  if (/bun\.lock/.test(joined)) jsManagers.push("bun");
-  if (/package-lock\.json/.test(joined) || /npm-shrinkwrap\.json/.test(joined))
-    jsManagers.push("npm");
-  if (jsManagers.length > 1) packageManager = `multiple (${jsManagers.join(" + ")})`;
-  else if (jsManagers.length === 1) packageManager = jsManagers[0];
-  else if (/package\.json/.test(joined)) packageManager = "npm";
-  else if (/cargo\.toml/.test(joined)) packageManager = "cargo";
-  else if (/go\.mod/.test(joined)) packageManager = "go";
-  else if (/poetry\.lock/.test(joined) || /pyproject\.toml/.test(joined)) packageManager = "poetry";
-  else if (/requirements\.txt/.test(joined) || /pipfile/.test(joined)) packageManager = "pip";
-  else if (/makefile/.test(joined)) packageManager = "make";
-  else if (/cmakelists\.txt/.test(joined)) packageManager = "cmake";
-  else if (/pom\.xml/.test(joined)) packageManager = "maven";
-  else if (/build\.gradle/.test(joined)) packageManager = "gradle";
-  else if (/composer\.json/.test(joined)) packageManager = "composer";
+  // so never collapse that into a single manager assumption. Runs against REAL
+  // paths only (tree + files that were actually fetched).
+  const managerFromPaths = (paths: string[]): string => {
+    const joined = paths.map((p) => p.toLowerCase()).join("\n");
+    const jsManagers: string[] = [];
+    if (/pnpm-lock\.yaml/.test(joined)) jsManagers.push("pnpm");
+    if (/yarn\.lock/.test(joined)) jsManagers.push("yarn");
+    if (/bun\.lock/.test(joined)) jsManagers.push("bun");
+    if (/package-lock\.json/.test(joined) || /npm-shrinkwrap\.json/.test(joined))
+      jsManagers.push("npm");
+    if (jsManagers.length > 1) return `multiple (${jsManagers.join(" + ")})`;
+    if (jsManagers.length === 1) return jsManagers[0];
+    if (/pubspec\.yaml/.test(joined)) return "pub";
+    if (/package\.json/.test(joined)) return "npm";
+    if (/cargo\.toml/.test(joined)) return "cargo";
+    if (/go\.mod/.test(joined)) return "go";
+    if (/poetry\.lock/.test(joined) || /pyproject\.toml/.test(joined)) return "poetry";
+    if (/requirements\.txt/.test(joined) || /pipfile/.test(joined)) return "pip";
+    if (/makefile/.test(joined)) return "make";
+    if (/cmakelists\.txt/.test(joined)) return "cmake";
+    if (/pom\.xml/.test(joined)) return "maven";
+    if (/build\.gradle/.test(joined)) return "gradle";
+    if (/composer\.json/.test(joined)) return "composer";
+    return "";
+  };
+  packageManager = managerFromPaths(allFilePaths);
 
   // Check features grounded in tree
   for (const p of allFilePaths) {
@@ -370,6 +381,18 @@ async function scanRepository(
       filesToFetch.push(match);
       manifestCount++;
       if (manifestCount >= 10) break;
+    }
+  }
+
+  // Tree-less fallback: attempt the well-known manifests directly. Only files
+  // that actually exist will resolve; nothing fabricated enters the corpus.
+  if (allFilePaths.length === 0 && filesToFetch.length === 0) {
+    for (const manifest of ESSENTIAL_MANIFESTS) {
+      if (filesToFetch.length >= 8) break;
+      if (!prioritySet.has(manifest)) {
+        prioritySet.add(manifest);
+        filesToFetch.push(manifest);
+      }
     }
   }
 
@@ -442,6 +465,12 @@ async function scanRepository(
     if (r.status === "fulfilled" && r.value.text) {
       fetchedFiles.set(r.value.path, r.value.text);
     }
+  }
+
+  // If the tree was unavailable, lock the package manager onto the manifests
+  // that ACTUALLY fetched (ground truth, never assumptions).
+  if (!packageManager && fetchedFiles.size > 0) {
+    packageManager = managerFromPaths([...fetchedFiles.keys()]);
   }
 
   // Build clean visual directory tree
@@ -662,6 +691,70 @@ function parseRequirementsTxt(text: string): string[] {
     }
   }
   return deps;
+}
+
+interface ParsedPubspec {
+  name: string;
+  version: string;
+  description: string;
+  dependencies: string[];
+  devDependencies: string[];
+  hasFlutterSdk: boolean;
+}
+
+/** Parse pubspec.yaml (Flutter / Dart package manifest). */
+function parsePubspec(text: string): ParsedPubspec {
+  const result: ParsedPubspec = {
+    name: "",
+    version: "",
+    description: "",
+    dependencies: [],
+    devDependencies: [],
+    hasFlutterSdk: false,
+  };
+
+  let currentDeps: string[] | null = null;
+
+  for (const rawLine of text.split("\n")) {
+    const indent = rawLine.match(/^ */)?.[0].length ?? 0;
+    const line = rawLine.trim();
+    if (!line) continue;
+
+    if (indent === 0) {
+      // Top-level scalar or section header.
+      if (line === "dependencies:") {
+        currentDeps = result.dependencies;
+        continue;
+      }
+      if (line === "dev_dependencies:") {
+        currentDeps = result.devDependencies;
+        continue;
+      }
+      currentDeps = null;
+
+      const scalar = line.match(/^([a-zA-Z0-9_-]+)\s*:\s*(.+)$/);
+      if (!scalar) continue;
+      const key = scalar[1].toLowerCase();
+      const value = scalar[2].trim().replace(/["']/g, "");
+      if (key === "name") result.name = value;
+      else if (key === "version") result.version = value;
+      else if (key === "description") result.description = value;
+      continue;
+    }
+
+    // Dependency entry under dependencies:/dev_dependencies: (indented).
+    if (currentDeps) {
+      const dep = line.match(/^([a-zA-Z0-9_-]+)\s*:/);
+      if (dep && dep[1] !== "sdk" && !currentDeps.includes(dep[1])) {
+        currentDeps.push(dep[1]);
+      }
+    }
+  }
+
+  result.hasFlutterSdk =
+    result.dependencies.includes("flutter") || /sdk\s*:\s*flutter/.test(text.toLowerCase());
+
+  return result;
 }
 
 interface ParsedGoMod {
@@ -984,6 +1077,8 @@ function synthesizeFromDescription(desc: string): SynthesizedDesc {
   const dependencies: string[] = [];
 
   // Detect languages
+  if (/\bflutter\b/.test(text) && !languages.includes("Dart")) languages.push("Dart");
+  if (/\bdart\b/.test(text) && !languages.includes("Dart")) languages.push("Dart");
   if (/\b(typescript|ts)\b/.test(text)) languages.push("TypeScript");
   if (/\b(javascript|js|node|nodejs)\b/.test(text) && !languages.includes("TypeScript"))
     languages.push("JavaScript");
@@ -1003,6 +1098,7 @@ function synthesizeFromDescription(desc: string): SynthesizedDesc {
   const pushF = (name: string, ok: boolean) => {
     if (ok && !frameworks.includes(name)) frameworks.push(name);
   };
+  pushF("Flutter", /\bflutter\b/.test(text));
   pushF("Redis", /\bredis\b/.test(text));
   pushF("PostgreSQL", /\b(postgres|postgresql|pg)\b/.test(text));
   pushF("MongoDB", /\b(mongo|mongodb)\b/.test(text));
@@ -1018,54 +1114,24 @@ function synthesizeFromDescription(desc: string): SynthesizedDesc {
   pushF("Kafka", /\bkafka\b/.test(text));
   pushF("GraphQL", /\bgraphql\b/.test(text));
 
-  let packageManager = "npm";
-  let entryPoint = "src/index.ts";
-  let scripts: Record<string, string> = {
-    build: "tsc",
-    start: "node dist/index.js",
-    dev: "tsx watch src/index.ts",
-    test: "vitest run",
-  };
-
-  if (languages.includes("Python")) {
-    packageManager = "pip";
-    entryPoint = "main.py";
-    scripts = {
-      start: "python main.py",
-      test: "pytest",
-    };
-  } else if (languages.includes("Rust")) {
-    packageManager = "cargo";
-    entryPoint = "src/main.rs";
-    scripts = {
-      build: "cargo build --release",
-      test: "cargo test",
-      run: "cargo run",
-    };
-  } else if (languages.includes("Go")) {
-    packageManager = "go";
-    entryPoint = "main.go";
-    scripts = {
-      build: "go build -o app .",
-      test: "go test ./...",
-      run: "go run main.go",
-    };
-  } else if (languages.includes("JavaScript")) {
+  // Package manager: only claim one that the description confidently supports.
+  let packageManager = "";
+  if (languages.includes("Python")) packageManager = "pip";
+  else if (languages.includes("Rust")) packageManager = "cargo";
+  else if (languages.includes("Go")) packageManager = "go";
+  else if (languages.includes("Dart")) packageManager = "pub";
+  else if (languages.includes("JavaScript") || languages.includes("TypeScript"))
     packageManager = "npm";
-    entryPoint = "index.js";
-    scripts = {
-      start: "node index.js",
-      dev: "node --watch index.js",
-      test: "node --test",
-    };
-  }
 
-  for (const f of frameworks) {
-    dependencies.push(f.toLowerCase().replace(/\.js$/, ""));
-  }
+  // NO fabricated values. Commands, entry points, scripts, and dependency
+  // lists are only ever produced when they can be verified; a description
+  // alone cannot verify them, so leave them empty and let the writer stay
+  // generic instead of inventing commands the project does not have.
+  const entryPoint = "";
+  const scripts: Record<string, string> = {};
 
   return {
-    languages: languages.length > 0 ? languages : ["TypeScript"],
+    languages,
     frameworks,
     packageManager,
     entryPoint,
@@ -1140,6 +1206,7 @@ function buildRepoFacts(options: {
       mjs: "JavaScript",
       vue: "Vue",
       svelte: "Svelte",
+      dart: "Dart",
       py: "Python",
       go: "Go",
       rs: "Rust",
@@ -1245,6 +1312,23 @@ function buildRepoFacts(options: {
     }
   }
 
+  // 5. pubspec.yaml (Flutter / Dart)
+  const pubspecText = fetchedFiles.get("pubspec.yaml");
+  if (pubspecText) {
+    const parsedPub = parsePubspec(pubspecText);
+    if (!languages.includes("Dart")) languages.push("Dart");
+    allDeps = [...allDeps, ...parsedPub.dependencies];
+    allDevDeps = [...allDevDeps, ...parsedPub.devDependencies];
+    if (!entryPoint && allFilePaths.some((p) => /^lib\/main\.dart$/i.test(p))) {
+      entryPoint = "lib/main.dart";
+    }
+    if (Object.keys(pkgScripts).length === 0) {
+      pkgScripts = parsedPub.hasFlutterSdk
+        ? { run: "flutter run", test: "flutter test", build: "flutter build" }
+        : {};
+    }
+  }
+
   if (!entryPoint) {
     entryPoint =
       ENTRY_POINTS.find((e) => allFilePaths.some((p) => p.toLowerCase() === e.toLowerCase())) ||
@@ -1290,6 +1374,10 @@ function buildRepoFacts(options: {
   pushFramework("FastAPI", /fastapi/.test(pyLower));
   pushFramework("Django", /django/.test(pyLower));
   pushFramework("Flask", /flask/.test(pyLower));
+
+  // Flutter / Dart framework detection from the actual manifest
+  const pubspecLower = (pubspecText || "").toLowerCase();
+  pushFramework("Flutter", /\bflutter\b/.test(pubspecLower));
 
   // Environment variables extraction
   const envVars = parseEnvFiles(fetchedFiles);
@@ -1397,6 +1485,101 @@ function estimateTokens(text: string): number {
   return Math.ceil(text.length / 3.6);
 }
 
+/**
+ * Technology names the generator must NEVER introduce on its own. Only names in
+ * this list are policed, and only when they appear in assertive prose (negated
+ * or contrast phrases are ignored). English-word collisions ("React to changes",
+ * "swift response") are excluded or guarded so we do not produce false positives.
+ */
+const KNOWN_FABRICATION_TECH = [
+  "Python",
+  "Rust",
+  "Golang",
+  "Docker",
+  "Dockerfile",
+  "docker-compose",
+  "Kubernetes",
+  "FastAPI",
+  "Django",
+  "Flask",
+  "Axum",
+  "Actix",
+  "Tokio",
+  "gRPC",
+  "GraphQL",
+  "Kafka",
+  "MongoDB",
+  "SQLite",
+  "PostgreSQL",
+  "Redis",
+  "Node.js",
+  "Next.js",
+  "React Native",
+  "React",
+  "Vue.js",
+  "Svelte",
+  "Angular",
+  "Laravel",
+  "Spring Boot",
+  "Ruby on Rails",
+  "TypeScript",
+  "JavaScript",
+  "Kotlin",
+  "Dart",
+  "Flutter",
+  "Java",
+  "C#",
+  ".NET",
+  "Elixir",
+  "Haskell",
+  "Scala",
+  "Clojure",
+  "Terraform",
+  "Ansible",
+];
+
+function escapeRegExp(s: string): string {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+/**
+ * Returns the canonical list of technology names that appear in the README but
+ * are NOT backed by the project facts / manifest. Empty array = clean.
+ */
+function findFabricatedStack(readme: string, facts: RepoFacts): string[] {
+  const lower = readme.toLowerCase();
+
+  const allowed = new Set<string>();
+  for (const l of facts.languages) allowed.add(l.toLowerCase());
+  for (const f of facts.frameworks) allowed.add(f.toLowerCase());
+  for (const d of facts.dependencies) allowed.add(d.toLowerCase());
+  for (const d of facts.devDependencies) allowed.add(d.toLowerCase());
+
+  const fabricated: string[] = [];
+  for (const name of KNOWN_FABRICATION_TECH) {
+    const key = name.toLowerCase();
+    if (allowed.has(key)) continue;
+
+    // "React" as an English verb ("the view reacts to state changes")
+    if (key === "react" && /\breact(?:s|ed|ing)?\s+to\b/.test(lower)) continue;
+
+    // Word-boundary test that also works for punctuation-led names (".net"):
+    // name must be preceded by start/space/non-alnum and not followed by alnum.
+    const boundaryPrefix = `(?:^|[^a-z0-9])${escapeRegExp(key)}(?![a-z0-9])`;
+    if (!new RegExp(boundaryPrefix, "i").test(lower)) continue;
+
+    // Skip negated / contrast statements ("not Python", "instead of Go")
+    const negated = new RegExp(
+      `(?:^|[^a-z0-9])(?:not|no|without|instead of|rather than|other than|unlike)\\s+(?:a|an|the)?\\s*${escapeRegExp(key)}(?![a-z0-9])`,
+      "i",
+    );
+    if (negated.test(lower)) continue;
+
+    fabricated.push(name);
+  }
+  return fabricated;
+}
+
 /** Clamp context volume so that input + max_tokens stays under the 8000 TPM budget. */
 function clampContextToBudget(
   sourceSnippets: { path: string; snippet: string }[],
@@ -1498,6 +1681,8 @@ export async function runReadmeGeneration(rawInput: unknown): Promise<ReadmeResu
   if (!key || key.trim().length === 0) {
     throw new Error("Missing GENERATIVE_KEY. Add your API key to the .env file.");
   }
+  // Narrowed capture for closures (TS loses narrowing inside nested functions).
+  const apiKey: string = key;
   if (!data.projectUrl && !data.description) {
     throw new Error("Provide a GitHub URL or a project description.");
   }
@@ -1540,7 +1725,6 @@ export async function runReadmeGeneration(rawInput: unknown): Promise<ReadmeResu
   if (repo) {
     repoInfo.owner = repo.owner;
     repoInfo.repo = repo.repo;
-    repoInfo.title = repo.repo.replace(/[-_]/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 
     githubMeta = await fetchRepoMetadata(repo.owner, repo.repo);
     const branch = githubMeta.defaultBranch || "main";
@@ -1560,6 +1744,18 @@ export async function runReadmeGeneration(rawInput: unknown): Promise<ReadmeResu
     hasTests = scan.hasTests;
     hasCi = scan.hasCi;
 
+    // Parse manifests for identity (pubspec takes priority over package.json for Flutter)
+    const pubspecContent = fetchedFiles.get("pubspec.yaml");
+    let pubspecName = "";
+    let pubspecDescription = "";
+    let pubspecVersion = "";
+    if (pubspecContent) {
+      const parsedPub = parsePubspec(pubspecContent);
+      pubspecName = parsedPub.name || "";
+      pubspecDescription = parsedPub.description || "";
+      pubspecVersion = parsedPub.version || "";
+    }
+
     let pkgContent = fetchedFiles.get("package.json");
     if (!pkgContent) {
       for (const [p, t] of fetchedFiles) {
@@ -1569,12 +1765,15 @@ export async function runReadmeGeneration(rawInput: unknown): Promise<ReadmeResu
         }
       }
     }
-
+    let pkgName = "";
+    let pkgDescription = "";
+    let pkgVersion = "";
     if (pkgContent) {
       const parsed = parsePackageJson(pkgContent);
       if (parsed) {
-        if (parsed.description) repoInfo.description = parsed.description;
-        if (parsed.version) repoInfo.version = parsed.version;
+        pkgName = parsed.name || "";
+        pkgDescription = parsed.description || "";
+        pkgVersion = parsed.version || "";
         repoInfo.scripts = parsed.scripts;
         repoInfo.dependencies = parsed.dependencies;
         repoInfo.devDependencies = parsed.devDependencies;
@@ -1582,8 +1781,7 @@ export async function runReadmeGeneration(rawInput: unknown): Promise<ReadmeResu
       }
     }
 
-    // Prefer the repo's REAL identity (GitHub metadata + actual README) over
-    // generic starter-template values from package.json.
+    // Real identity from README
     const readmeContent = [...fetchedFiles.entries()].find(
       ([p, t]) => /(^|\/)(readme\.md|readme)$/i.test(p) && t.trim().length > 0,
     )?.[1];
@@ -1591,26 +1789,27 @@ export async function runReadmeGeneration(rawInput: unknown): Promise<ReadmeResu
       ? extractReadmeIdentity(readmeContent)
       : { title: "", summary: "" };
 
+    // Title priority: README heading > pubspec name > package.json name > repo name (humanized)
     const repoNameHumanized = repo.repo
       .replace(/[-_]/g, " ")
       .replace(/\b\w/g, (c) => c.toUpperCase());
+    repoInfo.title = readmeIdentity.title || pubspecName || pkgName || repoNameHumanized;
 
-    // Title priority: README heading > repo name (humanized)
-    if (readmeIdentity.title) {
-      repoInfo.title = readmeIdentity.title;
-    } else {
-      repoInfo.title = repoNameHumanized;
-    }
-
-    // Description priority: GitHub description > README summary > package.json description
+    // Description priority: GitHub description > README summary > pubspec > package.json > fallback
     if (githubMeta.description && githubMeta.description.trim().length > 0) {
       repoInfo.description = githubMeta.description.trim();
     } else if (readmeIdentity.summary) {
       repoInfo.description = readmeIdentity.summary;
+    } else if (pubspecDescription) {
+      repoInfo.description = pubspecDescription;
+    } else if (pkgDescription) {
+      repoInfo.description = pkgDescription;
     }
     if (repoInfo.description.toLowerCase().includes("starter") && readmeIdentity.summary) {
-      repoInfo.description = readmeIdentity.summary || repoInfo.description;
+      repoInfo.description = readmeIdentity.summary;
     }
+    if (pubspecVersion && !repoInfo.version) repoInfo.version = pubspecVersion;
+    else if (pkgVersion && !repoInfo.version) repoInfo.version = pkgVersion;
   }
 
   const projectTitle =
@@ -1639,6 +1838,9 @@ export async function runReadmeGeneration(rawInput: unknown): Promise<ReadmeResu
       license: githubMeta?.license,
     });
   } else {
+    // Description-only mode: keyword-based first-pass stack. No fabricated
+    // values - scripts, dependencies, license, and counts stay empty/unknown
+    // because they cannot be verified from a description alone.
     const synthesized = synthesizeFromDescription(data.description);
     facts = {
       languages: synthesized.languages,
@@ -1649,9 +1851,9 @@ export async function runReadmeGeneration(rawInput: unknown): Promise<ReadmeResu
       dependencies: synthesized.dependencies,
       devDependencies: [],
       has_docker: synthesized.frameworks.includes("Docker"),
-      has_tests: true,
+      has_tests: false,
       has_ci: false,
-      license: "MIT",
+      license: "",
       folder_structure: [],
       env_vars: [],
       readme_excerpt: "",
@@ -1679,22 +1881,10 @@ export async function runReadmeGeneration(rawInput: unknown): Promise<ReadmeResu
     inferredTitle: projectTitle,
     inferredDescription: projectDesc,
     detectedStack: facts.languages.slice(0, 8).concat(facts.frameworks.slice(0, 6)),
-    fileCount: allFilePaths.length || (repo ? fetchedFiles.size : 12),
-    componentCount: repo
-      ? componentCount
-      : facts.frameworks.includes("React") || facts.frameworks.includes("Vue")
-        ? 8
-        : 0,
-    apiRoutes: repo
-      ? apiRoutes
-      : facts.frameworks.includes("Express") || facts.frameworks.includes("FastAPI")
-        ? 6
-        : 0,
-    databaseModels: repo
-      ? databaseModels
-      : facts.frameworks.includes("PostgreSQL") || facts.frameworks.includes("MongoDB")
-        ? 4
-        : 0,
+    fileCount: allFilePaths.length || (repo ? fetchedFiles.size : 0),
+    componentCount: repo ? componentCount : 0,
+    apiRoutes: repo ? apiRoutes : 0,
+    databaseModels: repo ? databaseModels : 0,
   };
 
   // Build filter instructions
@@ -1768,8 +1958,9 @@ ${sectionPromptList}
    - CRITICAL: Do NOT generate ANY section heading that is not in the requested list above! Never add extra unsolicited sections.
 
 4. 100% GROUNDED & ACCURATE:
-   - Ground all explanations, commands, and code samples in the actual languages (${facts.languages.join(", ") || "the project's stack"}), frameworks (${facts.frameworks.join(", ") || "standard libraries"}), package manager (${facts.package_manager}), and real scripts (${Object.keys(facts.scripts).join(", ") || "standard scripts"}).
-   - NEVER fabricate unrelated programming languages or frameworks (e.g. do not mention Rust, Go, Python, Docker, Kubernetes, or microservices unless explicitly present in the provided tech stack).
+   - Ground all explanations, commands, and code samples in the actual languages (${facts.languages.join(", ") || "UNKNOWN - do not name any language"}), frameworks (${facts.frameworks.join(", ") || "UNKNOWN - do not name any framework"}), package manager (${facts.package_manager || "UNKNOWN - do not name any package manager"}), and real scripts (${Object.keys(facts.scripts).join(", ") || "UNKNOWN - do not list any commands"}).
+   - NEVER fabricate unrelated programming languages or frameworks (e.g. do not mention Python, Rust, Go, TypeScript, JavaScript, React, Docker, Kubernetes, or microservices unless explicitly present in the provided tech stack).
+   - UNKNOWN VALUES: whenever a stack field above is marked "UNKNOWN", you MUST NOT invent it. Paraphrase generically (e.g. "written in the project's primary language") or omit the detail entirely. Never insert a specific technology name that is not in the dossier's 'Primary Languages', 'Frameworks & Tools', or 'Dependencies' sections.
    - Do NOT begin sentences with the capitalized word 'Go' (use 'Navigate to', 'Proceed to', or 'Visit' instead) to prevent confusion with the Go programming language.
    - Use the REAL package name "${projectTitle}" or from the manifest when showing import statements or install commands.
    - For code examples, write realistic, working code based on the actual exported APIs and entry points shown in the source snippets.
@@ -1781,7 +1972,21 @@ ${sectionPromptList}
 5. ZERO FLUKE TEXTS:
    - NEVER write phrases like "As evidenced by fact JSON", "The repository is flagged as...", "None configured", or "[Insert description here]".
    - Write natural, cohesive, professional technical prose without awkward robotic boilerplate.
-   - Start immediately with "# ${projectTitle}" (do NOT wrap the entire README in markdown code fences).`;
+   - Start immediately with "# ${projectTitle}" (do NOT wrap the entire README in markdown code fences).
+
+6. AEO / GEO / SEO OPTIMIZATION (MANDATORY):
+   - **STRUCTURE FOR ANSWER ENGINES**: Lead every major section with a 1-2 sentence direct answer summary (the "TL;DR") before diving deep. This enables featured snippets, AI Overviews, and voice search extraction.
+   - **ENTITY-RICH CONTENT**: Explicitly name the project, its category, primary language, framework, and core purpose in the first paragraph. Use consistent terminology (e.g., always "Caveman — AI README Generator" not "the tool" or "this project").
+   - **FAQ-READY Q&A**: In the FAQ section, frame every entry as a complete question + direct answer. Start answers with "Yes/No/It is..." for snippet eligibility. Include 5-8 high-intent questions (installation, compatibility, licensing, differentiation, limits).
+   - **SEMANTIC HEADINGS**: Use exactly one H1 (# Project Name). H2 for major sections. H3 for sub-topics. Never skip levels. Include primary keywords in H2s naturally (e.g., "## Installation", "## API Reference", "## Configuration").
+   - **KEYWORD CLUSTERS**: Naturally embed related terms: for a Flutter app → "Dart", "Flutter", "mobile", "cross-platform", "iOS", "Android", "pub.dev". For a Node CLI → "npm", "CLI", "command-line", "TypeScript", "bin", "global install". Do NOT stuff; write for humans, optimize for entities.
+   - **CITABLE FACTS**: Every quantitative claim (performance, bundle size, test coverage, version) must be traceable to the dossier. Format as "Caveman generates a README in ~47 seconds (measured on 10k-file repos)" not "fast generation".
+   - **STRUCTURED DATA HINTS**: Where a section maps to schema.org types (SoftwareApplication, CodeRepository, FAQPage, HowTo), write content that cleanly extracts: name, description, author, license, programmingLanguage, runtime, dependencies, install instructions, changelog.
+   - **COMPARISON & DIFFERENTIATION**: If "Comparison" or "Alternatives" section requested, include a table with competitor names, key differentiators (license, language, approach), and a one-sentence "Why choose X" per row. This feeds GEO "vs" queries.
+   - **AUTHORITY SIGNALS**: Mention test commands, CI status, license, version, and last updated implicitly via version. Add "Maintained by [author/org]" if in dossier.
+   - **INTERNAL ANCHORS**: Use descriptive link text for any internal links (e.g., "[Installation](#installation)" not "[here](#installation)").
+   - **MULTIMEDIA READINESS**: If badges requested, include: license, language, build status, version, package manager. Alt text on any image placeholders.
+   - **VOICE/SEARCH QUERY ALIGNMENT**: Anticipate "How do I install X?", "What language is X written in?", "Does X support Y?", "X vs Y". Answer these explicitly in relevant sections.`;
 
   // Build grounded context dossier
   const versioned = versionedDeps(fetchedFiles);
@@ -1794,7 +1999,7 @@ ${sectionPromptList}
     repoInfo.main ? `Primary Entry: ${repoInfo.main}` : `Primary Entry: ${facts.entry_point}`,
     ``,
     `# TECH STACK & ECOSYSTEM`,
-    `Primary Languages: ${facts.languages.join(", ") || "General"}`,
+    `Primary Languages: ${facts.languages.join(", ") || "Unknown (not verifiable from scan)"}`,
     facts.frameworks.length > 0 ? `Frameworks & Tools: ${facts.frameworks.join(", ")}` : "",
     `Package Manager: ${facts.package_manager}`,
     facts.license ? `License: ${facts.license}` : "License: MIT (or see repository)",
@@ -1844,36 +2049,61 @@ Write the complete README.md now.
   );
   const modelCandidates = [primaryModel, fallbackModel];
 
-  let text = "";
-  let lastError: Error | null = null;
-
-  for (const model of modelCandidates) {
-    try {
-      const result = await groqChatComplete({
-        apiKey: key,
-        model,
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: userPrompt },
-        ],
-        temperature: 0.2,
-        maxTokens,
-        maxRetries: 2,
-      });
-
-      if (result.text && result.text.trim().length > 60) {
-        text = result.text.trim();
-        break;
+  async function generateDraft(
+    extraInstruction?: string,
+  ): Promise<{ text: string; error: Error | null }> {
+    const sys = extraInstruction ? `${systemPrompt}\n\n${extraInstruction}` : systemPrompt;
+    let lastError: Error | null = null;
+    for (const model of modelCandidates) {
+      try {
+        const result = await groqChatComplete({
+          apiKey,
+          model,
+          messages: [
+            { role: "system", content: sys },
+            { role: "user", content: userPrompt },
+          ],
+          temperature: 0.2,
+          maxTokens,
+          maxRetries: 2,
+        });
+        if (result.text && result.text.trim().length > 60) {
+          return { text: result.text.trim(), error: null };
+        }
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : String(err);
+        console.warn(`[generateReadme] Model ${model} failed: ${msg}`);
+        lastError = err instanceof Error ? err : new Error(msg);
       }
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : String(err);
-      console.warn(`[generateReadme] Model ${model} failed: ${msg}`);
-      lastError = err instanceof Error ? err : new Error(msg);
+    }
+    return { text: "", error: lastError || new Error("Generation returned empty") };
+  }
+
+  const draft = await generateDraft();
+  let text = draft.text;
+
+  // Deterministic anti-hallucination gate: if the draft names technologies the
+  // repo does not contain, run ONE corrective pass. Bounded - never loops.
+  if (text) {
+    const fabricated = findFabricatedStack(text, facts);
+    if (fabricated.length > 0) {
+      console.warn(
+        JSON.stringify({
+          type: "fabrication_detected",
+          action: "generate",
+          tech: fabricated,
+          ts: new Date().toISOString(),
+        }),
+      );
+      const redo = await generateDraft(
+        `6. CORRECTIONS REQUIRED: your previous draft introduced technology claims that are NOT present in the dossier and were NEVER mentioned under 'Primary Languages', 'Frameworks & Tools', or 'Dependencies': ${fabricated.join(", ")}. Remove EVERY mention of them and rewrite the affected sections using ONLY the stack listed in the dossier. If the stack is unknown, write generically WITHOUT naming any specific technology, language, or package manager.`,
+      );
+      if (redo.text) text = redo.text;
     }
   }
 
   if (!text) {
-    const rawMsg = lastError?.message || "Generation returned empty";
+    const rawMsg = draft.error?.message || "Generation returned empty";
     if (rawMsg.includes("429") || rawMsg.includes("rate_limit") || rawMsg.includes("quota")) {
       throw new Error("AI rate limit reached. Please wait a moment and try again.");
     }
