@@ -13,7 +13,7 @@ import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
 import { CommitGraph } from "@/components/graph/CommitGraph";
 import { CommitDetail } from "@/components/graph/CommitDetail";
-import { fetchCommitGraph } from "@/lib/graph.server";
+import { fetchCommitGraph } from "@/lib/graph.functions";
 
 interface CommitNode {
   sha: string;

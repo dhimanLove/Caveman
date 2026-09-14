@@ -1,7 +1,7 @@
 import { useState, useCallback } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { auth, getAppCheckFrontendToken } from "@/lib/firebase";
-import { generateSecure } from "@/lib/generate.server";
+import { generateSecure } from "@/lib/generate.functions";
 
 const STORAGE_KEY = "caveman_usage";
 

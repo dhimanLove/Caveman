@@ -558,10 +558,12 @@ function AuthenticatedApp({ user, onSignOut }: { user: any; onSignOut: () => voi
             Caveman
           </span>
           <span className="w-px h-3 bg-bone" />
-          <span className="hidden md:inline text-[10px] text-ink/40">README Generator</span>
+          <span className="hidden md:inline text-[10px] font-medium text-ink/70">
+            README Generator
+          </span>
         </div>
         <div className="flex items-center gap-3">
-          <span className="text-[10px] text-ink/40 tabular-nums">
+          <span className="text-[10px] font-medium text-ink/60 tabular-nums">
             {data?.remaining ?? getStoredRemaining()}/10 remaining
           </span>
           <Button
@@ -761,7 +763,9 @@ function AuthenticatedApp({ user, onSignOut }: { user: any; onSignOut: () => voi
                                 <span className="w-2.5 h-2.5 rounded-full bg-bone" />
                                 <span className="w-2.5 h-2.5 rounded-full bg-bone" />
                                 <span className="w-2.5 h-2.5 rounded-full bg-bone" />
-                                <span className="ml-3 text-[10px] text-ink/40">README.md</span>
+                                <span className="ml-3 text-[10px] font-medium text-ink/60">
+                                  README.md
+                                </span>
                               </div>
                               <div className="p-6 lg:p-8">
                                 <MarkdownRender text={editableReadme || readme} />
@@ -870,7 +874,7 @@ function MarkdownRender({ text }: { text: string }) {
               <tr className="border-b border-bone">
                 {headers.map((h, idx) => (
                   <th key={idx} className="p-3 font-medium text-ink text-sm">
-                    {h}
+                    {inline(h)}
                   </th>
                 ))}
               </tr>
@@ -970,32 +974,201 @@ function MarkdownRender({ text }: { text: string }) {
   return <div className="max-w-none">{out}</div>;
 }
 
+function findClosing(text: string, start: number, open: string, close: string) {
+  let depth = 0;
+  for (let i = start; i < text.length; i++) {
+    if (text[i] === "\\") {
+      i++;
+      continue;
+    }
+    if (text[i] === open) depth++;
+    if (text[i] === close) {
+      depth--;
+      if (depth === 0) return i;
+    }
+  }
+  return -1;
+}
+
+function safeUrl(value: string, kind: "link" | "image") {
+  const url = value.trim().replace(/^<|>$/g, "");
+  if (!url || /^(?:javascript|vbscript|data):/i.test(url)) return null;
+  if (kind === "image" && !/^https?:\/\//i.test(url)) return null;
+  if (kind === "link" && !/^(?:https?:\/\/|mailto:|#|\/|\.\.?(?:\/|$))/i.test(url)) return null;
+  return url;
+}
+
+function parseDestination(text: string, start: number) {
+  if (text[start] !== "(") return null;
+  const end = findClosing(text, start, "(", ")");
+  if (end < 0) return null;
+  const destination = text.slice(start + 1, end).trim();
+  const match = destination.match(/^(?:<([^>]+)>|(\S+?))(?:\s+["']([^"']*)["'])?$/);
+  if (!match) return null;
+  return { end, url: match[1] ?? match[2], title: match[3] };
+}
+
+/**
+ * Render the inline Markdown used by generated READMEs without injecting raw
+ * HTML. React escapes text nodes for us, while links and images are created
+ * only after their destinations pass the URL allow-list.
+ */
 function inline(text: string): React.ReactNode {
   const nodes: React.ReactNode[] = [];
-  const regex = /(\*\*[^*]+\*\*|`[^`]+`)/g;
-  let last = 0,
-    m: RegExpExecArray | null,
-    k = 0;
-  while ((m = regex.exec(text)) !== null) {
-    if (m.index > last) nodes.push(text.slice(last, m.index));
-    const tok = m[0];
-    if (tok.startsWith("**"))
-      nodes.push(
-        <strong key={k++} className="font-medium text-ink">
-          {tok.slice(2, -2)}
-        </strong>,
-      );
-    else
-      nodes.push(
-        <code
-          key={k++}
-          className="bg-cream border border-bone px-1.5 py-0.5 font-mono text-xs text-ink rounded-md"
-        >
-          {tok.slice(1, -1)}
-        </code>,
-      );
-    last = m.index + tok.length;
+  let buffer = "";
+  let key = 0;
+
+  const flush = () => {
+    if (buffer) {
+      nodes.push(buffer);
+      buffer = "";
+    }
+  };
+
+  for (let i = 0; i < text.length; i++) {
+    const rest = text.slice(i);
+
+    if (text[i] === "\\" && "\\`*_{}[]()#+.!<>~-".includes(text[i + 1] ?? "")) {
+      buffer += text[++i];
+      continue;
+    }
+
+    if (rest.startsWith("![")) {
+      const labelEnd = findClosing(text, i + 1, "[", "]");
+      if (labelEnd >= 0) {
+        const destination = parseDestination(text, labelEnd + 1);
+        const url = destination && safeUrl(destination.url, "image");
+        if (destination && url) {
+          const alt = text.slice(i + 2, labelEnd).replace(/\\(.)/g, "$1");
+          flush();
+          const image = (
+            <img
+              key={key++}
+              src={url}
+              alt={alt}
+              title={destination.title}
+              loading="lazy"
+              className="inline-block max-h-6 max-w-full align-middle object-contain"
+            />
+          );
+          nodes.push(
+            <a
+              key={key++}
+              href={url}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex align-middle hover:opacity-80 transition-opacity"
+            >
+              {image}
+            </a>,
+          );
+          i = destination.end;
+          continue;
+        }
+      }
+    }
+
+    if (text[i] === "[") {
+      const labelEnd = findClosing(text, i, "[", "]");
+      if (labelEnd >= 0) {
+        const destination = parseDestination(text, labelEnd + 1);
+        const url = destination && safeUrl(destination.url, "link");
+        if (destination && url) {
+          flush();
+          nodes.push(
+            <a
+              key={key++}
+              href={url}
+              target="_blank"
+              rel="noreferrer"
+              title={destination.title}
+              className="text-electric-iris underline decoration-electric-iris/40 underline-offset-2 hover:text-lavender-dark"
+            >
+              {inline(text.slice(i + 1, labelEnd))}
+            </a>,
+          );
+          i = destination.end;
+          continue;
+        }
+      }
+    }
+
+    if (text[i] === "<") {
+      const end = text.indexOf(">", i + 1);
+      const candidate = end >= 0 ? text.slice(i + 1, end) : "";
+      if (/^(?:https?:\/\/|mailto:)/i.test(candidate)) {
+        const url = safeUrl(candidate, "link");
+        if (url) {
+          flush();
+          nodes.push(
+            <a
+              key={key++}
+              href={url}
+              target="_blank"
+              rel="noreferrer"
+              className="text-electric-iris underline underline-offset-2"
+            >
+              {candidate}
+            </a>,
+          );
+          i = end;
+          continue;
+        }
+      }
+    }
+
+    if (
+      text[i] === "`" ||
+      rest.startsWith("**") ||
+      rest.startsWith("__") ||
+      rest.startsWith("~~")
+    ) {
+      const marker = text[i] === "`" ? "`" : text.slice(i, i + 2);
+      const end = text.indexOf(marker, i + marker.length);
+      if (end > i + marker.length) {
+        flush();
+        const content = text.slice(i + marker.length, end);
+        if (marker === "`") {
+          nodes.push(
+            <code
+              key={key++}
+              className="bg-cream border border-bone px-1.5 py-0.5 font-mono text-xs text-ink rounded-md"
+            >
+              {content}
+            </code>,
+          );
+        } else {
+          const tag = marker === "~~" ? "del" : "strong";
+          const children = inline(content);
+          nodes.push(
+            tag === "del" ? (
+              <del key={key++}>{children}</del>
+            ) : (
+              <strong key={key++} className="font-medium text-ink">
+                {children}
+              </strong>
+            ),
+          );
+        }
+        i = end;
+        continue;
+      }
+    }
+
+    if ((text[i] === "*" || text[i] === "_") && text[i + 1] !== " ") {
+      const marker = text[i];
+      const end = text.indexOf(marker, i + 1);
+      if (end > i + 1 && text[end - 1] !== " ") {
+        flush();
+        nodes.push(<em key={key++}>{inline(text.slice(i + 1, end))}</em>);
+        i = end;
+        continue;
+      }
+    }
+
+    buffer += text[i];
   }
-  if (last < text.length) nodes.push(text.slice(last));
+
+  flush();
   return <>{nodes}</>;
 }

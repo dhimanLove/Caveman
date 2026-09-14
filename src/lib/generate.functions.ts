@@ -45,6 +45,51 @@ const RATE_LIMIT_MESSAGES = {
   global: "Caveman is seeing very high demand right now. Please try again in a few minutes.",
 } as const;
 
+// Maps raw AI-provider/client errors to safe, user-facing messages. Returns
+// null when the message is curated/informative and can pass through as-is.
+// All heuristics are lowercase-insensitive on the provider message.
+function toFriendlyGenerationError(rawMessage: string): string | null {
+  const m = rawMessage.toLowerCase();
+
+  // Server-side configuration / credential problems. Never mention env var
+  // names or key material in client-facing copy; log the raw cause server-side.
+  if (
+    m.includes("generative_key") ||
+    m.includes("api key") ||
+    rawMessage === "401" ||
+    m.includes("401") ||
+    m.includes("403") ||
+    m.includes("failed to initialize ai provider") ||
+    m.includes("unable to connect")
+  ) {
+    return "The AI service is temporarily unavailable. Please try again in a few minutes.";
+  }
+
+  // Provider context-window exceeded (e.g. Groq "Request too large" for the
+  // selected model) — actionable for the user without leaking model/org ids.
+  if (
+    m.includes("request too large") ||
+    m.includes("too large") ||
+    m.includes("context length") ||
+    m.includes("maximum context") ||
+    m.includes("context_length_exceeded") ||
+    m.includes("too many tokens") ||
+    m.includes("max tokens") ||
+    m.includes("token limit") ||
+    m.includes("context window")
+  ) {
+    return "This project is too large to generate at the selected detail level. Try the Minimal style, or reduce the number of sections.";
+  }
+
+  // Generic wrapped "README generation failed: ..." — the tail is raw provider
+  // text (model ids, quotas, org names). Strip it to a safe generic message.
+  if (m.includes("readme generation failed")) {
+    return "Generation failed. Please try again.";
+  }
+
+  return null;
+}
+
 export const generateSecure = createServerFn({ method: "POST" })
   .validator((input: unknown) => Input.parse(input))
   .handler(async ({ data }) => {
@@ -185,7 +230,16 @@ export const generateSecure = createServerFn({ method: "POST" })
 
       const message = err instanceof Error ? err.message : String(err);
 
-      // Pass through all curated / informative errors
+      // Sanitize raw provider errors before they reach the client: never expose
+      // internal config (env var names, keys) or raw provider internals (model
+      // ids, org ids, service tiers). Log the real cause server-side.
+      const friendly = toFriendlyGenerationError(message);
+      if (friendly) {
+        console.error("[generateSecure] Generation failed:", message);
+        throw new Error(friendly);
+      }
+
+      // Pass through curated / informative errors
       if (
         message === "Unauthorized" ||
         message.includes("Unauthorized") ||
@@ -199,19 +253,11 @@ export const generateSecure = createServerFn({ method: "POST" })
         message.includes("requests per minute") ||
         message.includes("timed out") ||
         message.includes("timeout") ||
-        message.includes("API key") ||
         message.includes("empty response") ||
-        message.includes("Missing GENERATIVE_KEY") ||
-        message.includes("Failed to initialize AI provider") ||
-        message.includes("README generation failed") ||
         message.includes("Provide a GitHub URL") ||
         message.includes("AI rate limited") ||
-        message.includes("too large") ||
-        message.includes("context") ||
-        message.includes("tokens") ||
         message.includes("temporarily unavailable")
       ) {
-        // Re-throw a plain Error so no stack / request internals reach the client.
         throw new Error(message);
       }
 
