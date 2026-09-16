@@ -23,12 +23,12 @@
   --color-lavender-dark: #6d28d9;
   --color-err: #d92d20;
 
-  /* Gradient - lavender accent for text moments */
+  /* Gradient - bold spectrum accent for text moments */
   --gradient-electric-iris:
-    radial-gradient(circle at 18% 32%, #8b5cf6 0%, transparent 42%),
-    radial-gradient(circle at 78% 68%, #fb7185 0%, transparent 46%),
-    radial-gradient(circle at 54% 42%, #facc15 0%, transparent 38%),
-    linear-gradient(120deg, #6d28d9 0%, #c084fc 38%, #fb7185 70%, #facc15 100%);
+    radial-gradient(circle at 14% 30%, #ef233c 0%, transparent 44%),
+    radial-gradient(circle at 80% 68%, #ec4899 0%, transparent 48%),
+    radial-gradient(circle at 52% 42%, #7c3aed 0%, transparent 42%),
+    linear-gradient(120deg, #b91c1c 0%, #e11d48 28%, #c026d3 52%, #7c3aed 76%, #60a5fa 100%);
 
   /* Font Families */
   --font-relative:
@@ -138,10 +138,10 @@ html[data-theme="dark"] {
   --color-lavender-dark: #ff312e;
   --color-err: #ff312e;
   --gradient-electric-iris:
-    radial-gradient(circle at 18% 32%, #8b5cf6 0%, transparent 42%),
-    radial-gradient(circle at 78% 68%, #fb7185 0%, transparent 46%),
-    radial-gradient(circle at 54% 42%, #facc15 0%, transparent 38%),
-    linear-gradient(120deg, #4c1d95 0%, #a78bfa 38%, #fb7185 70%, #facc15 100%);
+    radial-gradient(circle at 14% 30%, #ff4d5a 0%, transparent 44%),
+    radial-gradient(circle at 80% 68%, #f472b6 0%, transparent 48%),
+    radial-gradient(circle at 52% 42%, #a855f7 0%, transparent 42%),
+    linear-gradient(120deg, #dc2626 0%, #f43f5e 28%, #d946ef 52%, #8b5cf6 76%, #93c5fd 100%);
   --surface-canvas: #000103;
   --surface-card: #171a21;
   --surface-elevated: #282c35;
@@ -605,7 +605,7 @@ html[data-theme="dark"] .koboyo-illustration img {
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
-  animation: gradient-shimmer 14s ease-in-out infinite;
+  animation: gradient-shimmer 6s ease-in-out infinite;
 }
 @utility animate-blink {
   animation: blink-soft 2s ease-in-out infinite;
@@ -785,7 +785,7 @@ html[data-theme="dark"] .koboyo-illustration img {
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
-  animation: gradient-shimmer 14s ease-in-out infinite;
+  animation: gradient-shimmer 6s ease-in-out infinite;
   filter: drop-shadow(0 0 8px color-mix(in srgb, var(--color-electric-iris) 22%, transparent));
 }
 

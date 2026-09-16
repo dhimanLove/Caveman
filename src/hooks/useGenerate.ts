@@ -1,41 +1,58 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { auth, getAppCheckFrontendToken } from "@/lib/firebase";
 import { generateSecure } from "@/lib/generate.functions";
 
-const STORAGE_KEY = "caveman_usage";
+const STORAGE_KEY_PREFIX = "caveman_usage_v2";
+const LOCAL_DAILY_LIMIT = 10;
 
 interface StoredUsage {
-  remaining: number;
+  uid: string;
+  day: string;
+  used: number;
   cooldownEnd: number;
 }
 
-function loadStoredUsage(): StoredUsage {
+function currentDay(): string {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function storageKey(uid: string): string {
+  return `${STORAGE_KEY_PREFIX}:${uid}`;
+}
+
+function loadStoredUsage(uid: string): StoredUsage {
+  const fresh: StoredUsage = { uid, day: currentDay(), used: 0, cooldownEnd: 0 };
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const raw = localStorage.getItem(storageKey(uid));
     if (raw) {
       const parsed = JSON.parse(raw) as StoredUsage;
-      if (typeof parsed.remaining === "number" && typeof parsed.cooldownEnd === "number") {
-        return parsed;
+      if (
+        parsed.uid === uid &&
+        typeof parsed.day === "string" &&
+        typeof parsed.used === "number" &&
+        typeof parsed.cooldownEnd === "number"
+      ) {
+        return parsed.day === currentDay() ? parsed : fresh;
       }
     }
   } catch {
     // ignore corrupt data
   }
-  return { remaining: 10, cooldownEnd: 0 };
+  return fresh;
 }
 
-function saveStoredUsage(remaining: number, cooldownEnd: number) {
+function saveStoredUsage(usage: StoredUsage) {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({ remaining, cooldownEnd }));
+    localStorage.setItem(storageKey(usage.uid), JSON.stringify(usage));
   } catch {
     // storage full or unavailable
   }
 }
 
-function clearStoredUsage() {
+function clearStoredUsage(uid: string) {
   try {
-    localStorage.removeItem(STORAGE_KEY);
+    localStorage.removeItem(storageKey(uid));
   } catch {
     // ignore
   }
@@ -61,6 +78,7 @@ interface GenerateState {
   error: string | null;
   cooldownExpiry: number;
   isPending: boolean;
+  localRemaining: number;
 }
 
 function classifyError(err: unknown): { message: string; cooldown: number } {
@@ -155,15 +173,35 @@ export function useGenerate() {
   const fn = useServerFn(generateSecure);
 
   const [state, setState] = useState<GenerateState>(() => {
-    const stored = loadStoredUsage();
+    const uid = auth.currentUser?.uid || "anonymous";
+    const stored = loadStoredUsage(uid);
     const inCooldown = stored.cooldownEnd > Date.now();
     return {
       data: null,
       error: null,
       cooldownExpiry: inCooldown ? stored.cooldownEnd : 0,
       isPending: false,
+      localRemaining: Math.max(0, LOCAL_DAILY_LIMIT - stored.used),
     };
   });
+
+  useEffect(() => {
+    const refreshLocalUsage = () => {
+      const uid = auth.currentUser?.uid;
+      if (!uid) return;
+      const stored = loadStoredUsage(uid);
+      const cooldown = stored.cooldownEnd > Date.now() ? stored.cooldownEnd : 0;
+      setState((s) => ({
+        ...s,
+        cooldownExpiry: cooldown,
+        localRemaining: Math.max(0, LOCAL_DAILY_LIMIT - stored.used),
+      }));
+    };
+
+    const interval = window.setInterval(refreshLocalUsage, 60_000);
+    refreshLocalUsage();
+    return () => window.clearInterval(interval);
+  }, []);
 
   const generate = useCallback(
     async (input: GenerateInput) => {
@@ -177,7 +215,26 @@ export function useGenerate() {
             error: "Not signed in. Please sign in to generate.",
             cooldownExpiry: 0,
             isPending: false,
+            localRemaining: LOCAL_DAILY_LIMIT,
           });
+          return;
+        }
+
+        const stored = loadStoredUsage(user.uid);
+        if (stored.used >= LOCAL_DAILY_LIMIT || stored.cooldownEnd > Date.now()) {
+          const nextReset =
+            stored.cooldownEnd > Date.now()
+              ? stored.cooldownEnd
+              : new Date(`${currentDay()}T23:59:59.999Z`).getTime();
+          const message = "You have used all 10 generations for today. Try again tomorrow.";
+          setState((s) => ({
+            ...s,
+            data: null,
+            error: message,
+            cooldownExpiry: nextReset,
+            isPending: false,
+            localRemaining: 0,
+          }));
           return;
         }
 
@@ -190,6 +247,7 @@ export function useGenerate() {
             error: "Failed to get authentication token. Please sign in again.",
             cooldownExpiry: 0,
             isPending: false,
+            localRemaining: Math.max(0, LOCAL_DAILY_LIMIT - stored.used),
           });
           return;
         }
@@ -219,30 +277,60 @@ export function useGenerate() {
             error: "Generation returned empty. Try again.",
             cooldownExpiry: 0,
             isPending: false,
+            localRemaining: Math.max(0, LOCAL_DAILY_LIMIT - stored.used),
           });
           return;
         }
 
-        if (typeof result.remaining === "number") {
-          saveStoredUsage(result.remaining, result.cooldownEnd || 0);
-        }
+        const updatedUsage: StoredUsage = {
+          uid: user.uid,
+          day: currentDay(),
+          used: stored.used + 1,
+          cooldownEnd: result.cooldownEnd || 0,
+        };
+        saveStoredUsage(updatedUsage);
 
-        setState({ data: result, error: null, cooldownExpiry: 0, isPending: false });
+        setState({
+          data: result,
+          error: null,
+          cooldownExpiry: 0,
+          isPending: false,
+          localRemaining: Math.max(0, LOCAL_DAILY_LIMIT - updatedUsage.used),
+        });
         return result;
       } catch (err: unknown) {
         const { message, cooldown } = classifyError(err);
         if (cooldown > 0) {
-          saveStoredUsage(0, cooldown);
+          saveStoredUsage({
+            uid: auth.currentUser?.uid || "anonymous",
+            day: currentDay(),
+            used: LOCAL_DAILY_LIMIT,
+            cooldownEnd: cooldown,
+          });
         }
-        setState({ data: null, error: message, cooldownExpiry: cooldown, isPending: false });
+        setState((s) => ({
+          ...s,
+          data: null,
+          error: message,
+          cooldownExpiry: cooldown,
+          isPending: false,
+          localRemaining: cooldown > 0 ? 0 : s.localRemaining,
+        }));
       }
     },
     [fn],
   );
 
   const reset = useCallback(() => {
-    clearStoredUsage();
-    setState({ data: null, error: null, cooldownExpiry: 0, isPending: false });
+    const uid = auth.currentUser?.uid || "anonymous";
+    clearStoredUsage(uid);
+    setState({
+      data: null,
+      error: null,
+      cooldownExpiry: 0,
+      isPending: false,
+      localRemaining: LOCAL_DAILY_LIMIT,
+    });
   }, []);
 
   return { ...state, generate, reset };

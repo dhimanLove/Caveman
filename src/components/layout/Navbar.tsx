@@ -97,9 +97,9 @@ export function Navbar() {
 
   return (
     <header className="site-navbar sticky top-0 z-50 bg-cream/80 backdrop-blur-xl border-b border-bone/60">
-      <div className="mx-auto max-w-[1200px] px-4 sm:px-6 lg:px-8 h-16 sm:h-20 flex items-center justify-between">
+      <div className="mx-auto flex h-16 min-w-0 max-w-[1200px] items-center justify-between gap-3 px-4 sm:h-20 sm:px-6 lg:px-8">
         {/* Left: Logo */}
-        <div className="flex items-center gap-10">
+        <div className="flex min-w-0 shrink-0 items-center gap-10">
           <Logo href="/" />
         </div>
 
@@ -127,7 +127,7 @@ export function Navbar() {
         </nav>
 
         {/* Right: Auth / Action items */}
-        <div className="flex items-center gap-2 sm:gap-3.5">
+        <div className="flex shrink-0 items-center gap-2 sm:gap-3.5">
           {user ? (
             <>
               {user?.photoURL && (
@@ -174,7 +174,7 @@ export function Navbar() {
             <Link
               to="/generate"
               search={{ url: undefined }}
-              className="hidden sm:inline-flex btn-primary !h-9 !px-4 text-sm group"
+              className="hidden md:inline-flex btn-primary !h-9 !px-4 text-sm group"
             >
               Get Started
               <svg
@@ -234,7 +234,7 @@ export function Navbar() {
                 to="/generate"
                 search={{ url: undefined }}
                 onClick={() => setMenuOpen(false)}
-                className="btn-primary justify-center mt-3 sm:hidden"
+                className="btn-primary justify-center mt-3 md:hidden"
               >
                 Get Started
               </Link>

@@ -5,32 +5,19 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // App-wide spend counter. Backend-only (Admin SDK); no client access.
     match /usage/_global {
       allow read, write: if false;
     }
 
-    // Per-user rate-limit enforcement docs (10 req / 10h sliding window).
-    // The backend (Firebase Admin SDK) is the SOLE writer - it bypasses these
-    // rules. A signed-in user with a valid App Check token may read only
-    // their own document; client writes are denied unconditionally.
     match /rateLimits/{uid} {
-      allow get: if request.auth != null
-        && request.auth.uid == uid
-        && request.app.check() == true;
-      allow list: if request.auth != null
+      allow get, list: if request.auth != null
         && request.auth.uid == uid
         && request.app.check() == true;
       allow create, update, delete: if false;
     }
 
-    // Legacy usage-view documents (kept for backward compatibility). Same
-    // ownership + App Check requirement; client writes denied.
     match /usage/{uid} {
-      allow get: if request.auth != null
-        && request.auth.uid == uid
-        && request.app.check() == true;
-      allow list: if request.auth != null
+      allow get, list: if request.auth != null
         && request.auth.uid == uid
         && request.app.check() == true;
       allow create, update, delete: if false;

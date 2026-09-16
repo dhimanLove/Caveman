@@ -238,20 +238,6 @@ function SectionPicker({
   );
 }
 
-function getStoredRemaining(): number {
-  try {
-    const raw = localStorage.getItem("caveman_usage");
-    if (raw) {
-      const parsed = JSON.parse(raw);
-      if (typeof parsed.remaining === "number" && parsed.cooldownEnd > Date.now()) return 0;
-      if (typeof parsed.remaining === "number") return parsed.remaining;
-    }
-  } catch {
-    /* corrupt localStorage - fall through to default */
-  }
-  return 10;
-}
-
 function GeneratePage() {
   const { user, loading, error: authError, signIn, signOut } = useAuth();
 
@@ -297,13 +283,13 @@ function AuthenticatedApp({ user, onSignOut }: { user: any; onSignOut: () => voi
   const [loadMsgIdx, setLoadMsgIdx] = useState(0);
   const [mobileOpen, setMobileOpen] = useState(false);
 
-  const { isPending, data, error, cooldownExpiry, generate } = useGenerate();
+  const { isPending, data, error, cooldownExpiry, localRemaining, generate } = useGenerate();
 
   const readme = data?.readme ?? "";
   useEffect(() => {
     if (readme) setEditableReadme(readme);
   }, [readme]);
-  const disabled = isPending || (tab === "url" ? !url : !description);
+  const disabled = isPending || localRemaining <= 0 || (tab === "url" ? !url : !description);
   const inCooldown = cooldownExpiry > Date.now();
 
   useEffect(() => {
@@ -551,7 +537,7 @@ function AuthenticatedApp({ user, onSignOut }: { user: any; onSignOut: () => voi
         </div>
         <div className="flex items-center gap-3">
           <span className="text-[10px] font-medium text-ink/60 tabular-nums">
-            {data?.remaining ?? getStoredRemaining()}/10 remaining
+            {Math.min(data?.remaining ?? localRemaining, localRemaining)}/10 remaining
           </span>
           <Button
             onClick={() => setMobileOpen(true)}
