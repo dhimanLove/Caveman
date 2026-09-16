@@ -45,10 +45,10 @@ function AnimatedCounter({ target, suffix = "" }: { target: number; suffix?: str
 }
 
 const stats = [
-  { target: 12000, suffix: "+", label: "READMEs generated" },
-  { target: 50, suffix: "+", label: "tech stacks detected" },
-  { target: 150000, suffix: "+", label: "source files scanned" },
-  { target: 47, suffix: "s", label: "avg generation time" },
+  { target: 17, suffix: "+", label: "README sections" },
+  { target: 3, suffix: "", label: "writing tones" },
+  { target: 3, suffix: "", label: "documentation depths" },
+  { target: 90, suffix: "s", label: "target generation window" },
 ];
 
 export function StatsStrip() {

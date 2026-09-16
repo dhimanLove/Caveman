@@ -6,7 +6,6 @@ import {
   IconWarning as Warning,
   IconMagnifyingGlass as MagnifyingGlass,
   IconCheck as Check,
-  IconLoader as CircleNotch,
   IconArrowRight as ArrowRightIcon,
   IconDownload as Download,
   IconCopy as Copy,
@@ -18,6 +17,7 @@ import {
   IconEye as Eye,
   IconCode as CodeIcon,
   IconPencil as PencilSimple,
+  IconPickaxe as Pickaxe,
 } from "@/components/icons";
 
 import { useAuth } from "@/hooks/useAuth";
@@ -31,6 +31,9 @@ import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { CavemanMark } from "@/components/layout/Logo";
+import { ThemeToggle } from "@/components/layout/ThemeToggle";
+import { KoboyoIllustration } from "@/components/illustrations/KoboyoIllustration";
 
 function headingId(text: string) {
   const cleaned = text
@@ -205,12 +208,14 @@ function SectionPicker({
                   >
                     {active && <Check size={9} className="text-white" />}
                   </div>
-                  <span className={active ? "text-ink font-medium" : "text-ink/60"}>{s}</span>
+                  <span className={active ? "text-ink font-medium" : "text-ink/85"}>{s}</span>
                 </button>
               );
             })}
             {filtered.length === 0 && (
-              <p className="px-3 py-3 text-xs text-ink/40 text-center">No sections found</p>
+              <p className="generate-helper-text px-3 py-3 text-xs text-center">
+                No sections found
+              </p>
             )}
           </div>
           <div className="flex items-center justify-between border-t border-bone px-3 py-1.5">
@@ -219,11 +224,11 @@ function SectionPicker({
               onClick={() =>
                 onChange(selected.length === ALL_SECTIONS.length ? [] : [...ALL_SECTIONS])
               }
-              className="text-[10px] font-medium text-ink/40 hover:text-ink transition-colors"
+              className="generate-helper-text text-[10px] font-medium hover:text-ink transition-colors"
             >
               {selected.length === ALL_SECTIONS.length ? "Deselect all" : "Select all"}
             </button>
-            <span className="text-[10px] text-ink/40">
+            <span className="generate-helper-text text-[10px]">
               {selected.length}/{ALL_SECTIONS.length}
             </span>
           </div>
@@ -253,18 +258,16 @@ function GeneratePage() {
   if (loading) {
     return (
       <div className="min-h-screen bg-cream flex flex-col items-center justify-center px-6">
-        <div className="w-12 h-12 rounded-[4px] overflow-hidden bg-cream border border-bone flex items-center justify-center mx-auto">
-          <img src="/logo-256.png" alt="Caveman logo" className="w-full h-full object-contain" />
-        </div>
+        <CavemanMark className="w-12 h-12 mx-auto" iconClassName="w-7 h-7" />
         <h1 className="mt-5 text-2xl font-light text-ink text-center">
           Generate a README from any GitHub repo
         </h1>
         <p className="mt-2 text-sm text-fog max-w-md text-center leading-relaxed">
           Paste a GitHub URL or describe your project. Caveman scans your file tree and writes a
-          production-ready README.md in about 47 seconds.
+          production-ready README.md within the configured generation window.
         </p>
         <div className="mt-8 flex items-center gap-2 text-xs text-fog">
-          <CircleNotch size={14} className="text-ink animate-spin" />
+          <Pickaxe size={15} className="text-electric-iris animate-pulse" />
           Loading generator…
         </div>
       </div>
@@ -292,7 +295,6 @@ function AuthenticatedApp({ user, onSignOut }: { user: any; onSignOut: () => voi
   const [copied, setCopied] = useState(false);
   const [editableReadme, setEditableReadme] = useState("");
   const [loadMsgIdx, setLoadMsgIdx] = useState(0);
-  const [elapsed, setElapsed] = useState(0);
   const [mobileOpen, setMobileOpen] = useState(false);
 
   const { isPending, data, error, cooldownExpiry, generate } = useGenerate();
@@ -305,25 +307,15 @@ function AuthenticatedApp({ user, onSignOut }: { user: any; onSignOut: () => voi
   const inCooldown = cooldownExpiry > Date.now();
 
   useEffect(() => {
-    if (!isPending) return;
+    if (!isPending) {
+      setLoadMsgIdx(0);
+      return;
+    }
     const interval = setInterval(() => {
-      setLoadMsgIdx((i) => (i + 1) % LOADING_MESSAGES.length);
+      setLoadMsgIdx((i) => Math.min(i + 1, LOADING_MESSAGES.length - 1));
     }, 2000);
     return () => clearInterval(interval);
   }, [isPending]);
-
-  useEffect(() => {
-    if (!isPending) {
-      setElapsed(0);
-      return;
-    }
-    const started = Date.now();
-    const tick = setInterval(() => setElapsed(Math.floor((Date.now() - started) / 1000)), 1000);
-    return () => clearInterval(tick);
-  }, [isPending]);
-
-  // Fake-determinate progress toward ~90s average
-  const progressPct = Math.min(95, Math.floor((elapsed / 90) * 100));
 
   const onCopy = async () => {
     if (!readme) return;
@@ -399,7 +391,7 @@ function AuthenticatedApp({ user, onSignOut }: { user: any; onSignOut: () => voi
       <div className="p-4 space-y-4 border-b border-bone">
         {/* Source */}
         <div className="space-y-2">
-          <label className="text-[10px] font-medium text-ink/40 uppercase tracking-[0.286em]">
+          <label className="generate-control-label text-[10px] font-medium uppercase tracking-[0.286em]">
             Source
           </label>
           <Tabs value={tab} onValueChange={(v) => setTab(v as Tab)} className="w-full">
@@ -443,14 +435,15 @@ function AuthenticatedApp({ user, onSignOut }: { user: any; onSignOut: () => voi
               />
             </div>
           )}
-          <p className="text-[10px] text-ink/40 leading-relaxed">
-            Sign in with Google to access private repos. Public repos work without any extra setup.
+          <p className="generate-helper-text text-[10px] leading-relaxed">
+            Public repos work without extra setup. Private repos require a configured GitHub access
+            token on the server.
           </p>
         </div>
 
         {/* Style */}
-        <div className="space-y-1.5">
-          <label className="text-[10px] font-medium text-ink/40 uppercase tracking-[0.286em]">
+        <div className="generate-control-group space-y-1.5">
+          <label className="generate-control-label text-[10px] font-medium uppercase tracking-[0.286em]">
             Style
           </label>
           <div className="space-y-1">
@@ -459,13 +452,11 @@ function AuthenticatedApp({ user, onSignOut }: { user: any; onSignOut: () => voi
                 key={s}
                 type="button"
                 onClick={() => setStyle(s)}
-                className={`w-full flex items-center gap-2.5 rounded-[4px] border px-3 py-2 text-left transition-all cursor-pointer ${style === s ? "bg-electric-iris text-white border-electric-iris" : "bg-paper text-ink/60 border-bone hover:border-ink/30"}`}
+                className={`generate-style-option w-full flex items-center gap-2.5 rounded-[4px] border px-3 py-2 text-left transition-all cursor-pointer ${style === s ? "is-selected bg-electric-iris text-white border-electric-iris" : "bg-paper text-ink border-bone hover:border-ink/30"}`}
               >
                 <div className="min-w-0">
                   <span className="text-xs font-medium capitalize block truncate">{s}</span>
-                  <span
-                    className={`text-[10px] block truncate ${style === s ? "text-cream/70" : "text-ink/40"}`}
-                  >
+                  <span className="generate-style-description text-[10px] block truncate">
                     {STYLE_META[s].desc}
                   </span>
                 </div>
@@ -476,15 +467,15 @@ function AuthenticatedApp({ user, onSignOut }: { user: any; onSignOut: () => voi
 
         {/* Sections */}
         <div className="space-y-1.5">
-          <label className="text-[10px] font-medium text-ink/40 uppercase tracking-[0.286em]">
+          <label className="generate-control-label text-[10px] font-medium uppercase tracking-[0.286em]">
             Sections
           </label>
           <SectionPicker selected={sections} onChange={setSections} />
         </div>
 
         {/* Tone */}
-        <div className="space-y-1.5">
-          <label className="text-[10px] font-medium text-ink/40 uppercase tracking-[0.286em]">
+        <div className="generate-control-group space-y-1.5">
+          <label className="generate-control-label text-[10px] font-medium uppercase tracking-[0.286em]">
             Tone
           </label>
           <div className="space-y-1">
@@ -493,13 +484,11 @@ function AuthenticatedApp({ user, onSignOut }: { user: any; onSignOut: () => voi
                 key={o.value}
                 type="button"
                 onClick={() => setTone(o.value)}
-                className={`w-full flex items-center gap-2.5 rounded-[4px] border px-3 py-2 text-left transition-all cursor-pointer ${tone === o.value ? "bg-electric-iris text-white border-electric-iris" : "bg-paper text-ink/60 border-bone hover:border-ink/30"}`}
+                className={`generate-style-option w-full flex items-center gap-2.5 rounded-[4px] border px-3 py-2 text-left transition-all cursor-pointer ${tone === o.value ? "is-selected bg-electric-iris text-white border-electric-iris" : "bg-paper text-ink border-bone hover:border-ink/30"}`}
               >
                 <div className="min-w-0">
                   <span className="text-xs font-medium block truncate">{o.label}</span>
-                  <span
-                    className={`text-[10px] block truncate ${tone === o.value ? "text-cream/70" : "text-ink/40"}`}
-                  >
+                  <span className="generate-style-description text-[10px] block truncate">
                     {o.desc}
                   </span>
                 </div>
@@ -522,7 +511,7 @@ function AuthenticatedApp({ user, onSignOut }: { user: any; onSignOut: () => voi
               exit={{ y: -10, opacity: 0 }}
               className="relative z-10 flex items-center gap-2"
             >
-              <CircleNotch size={13} className="animate-spin" /> {LOADING_MESSAGES[loadMsgIdx]}
+              <Pickaxe size={13} className="text-cream" /> {LOADING_MESSAGES[loadMsgIdx]}
             </motion.span>
           ) : (
             <span className="relative z-10 flex items-center gap-2">
@@ -551,9 +540,7 @@ function AuthenticatedApp({ user, onSignOut }: { user: any; onSignOut: () => voi
       {/* Header */}
       <header className="h-11 border-b border-bone bg-paper flex items-center justify-between px-4 shrink-0">
         <div className="flex items-center gap-2.5 group">
-          <div className="w-6 h-6 rounded-[4px] overflow-hidden bg-cream border border-bone flex items-center justify-center">
-            <img src="/logo-256.png" alt="Caveman logo" className="w-full h-full object-contain" />
-          </div>
+          <CavemanMark className="w-6 h-6" iconClassName="w-4 h-4" />
           <span className="text-[10px] font-medium text-ink uppercase tracking-[0.286em]">
             Caveman
           </span>
@@ -590,8 +577,15 @@ function AuthenticatedApp({ user, onSignOut }: { user: any; onSignOut: () => voi
           >
             <SignOut size={10} /> <span className="hidden sm:inline">Sign out</span>
           </Button>
+          <div className="ml-1 flex shrink-0 items-center sm:ml-2">
+            <ThemeToggle />
+          </div>
         </div>
       </header>
+
+      {isPending && (
+        <div className="generation-top-loader" role="status" aria-label="Generating README" />
+      )}
 
       {/* Mobile options sheet */}
       <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
@@ -637,32 +631,32 @@ function AuthenticatedApp({ user, onSignOut }: { user: any; onSignOut: () => voi
               {/* Main content */}
               <div className="flex-1 flex flex-col min-w-0 bg-paper min-h-0 overflow-hidden">
                 {isPending && (
-                  <div className="px-4 py-3 border-b border-bone bg-paper shrink-0">
-                    <div className="flex items-center gap-3">
-                      <div className="flex items-center gap-2 text-xs text-ink/60 min-w-0 flex-1">
-                        <CircleNotch size={13} className="animate-spin text-ink shrink-0" />
-                        <motion.span
-                          key={loadMsgIdx}
-                          initial={{ opacity: 0 }}
-                          animate={{ opacity: 1 }}
-                          className="truncate"
-                        >
-                          {LOADING_MESSAGES[loadMsgIdx]}
-                        </motion.span>
+                  <div className="generation-illustration-loader flex-1 flex items-center justify-center px-6">
+                    <motion.div
+                      initial={{ opacity: 0, y: 12 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="text-center"
+                    >
+                      <div className="generation-loader-art relative mx-auto mb-6 flex h-40 w-40 items-center justify-center">
+                        <span className="generation-loader-orbit generation-loader-orbit-one" />
+                        <span className="generation-loader-orbit generation-loader-orbit-two" />
+                        <KoboyoIllustration
+                          icon="personDocumentingApi"
+                          alt="Koboyo character documenting an API while generating your README"
+                          className="relative z-10 h-28 w-28"
+                          fallback={<CavemanMark className="h-24 w-24" iconClassName="h-16 w-16" />}
+                        />
                       </div>
-                      <span className="text-[10px] text-ink/40 shrink-0 tabular-nums">
-                        {elapsed}s · ~{Math.max(1, 90 - elapsed)}s left
-                      </span>
-                    </div>
-                    <div className="mt-2.5 h-1 bg-bone rounded-full overflow-hidden">
-                      <motion.div
-                        className="h-full bg-electric-iris rounded-full transition-[width] duration-1000"
-                        animate={{ width: `${progressPct}%` }}
-                      />
-                    </div>
-                    <p className="mt-1.5 text-[10px] text-ink/30">
-                      Deep scan of up to 25 source files - this is the slow, accurate part.
-                    </p>
+                      <h3 className="text-base font-medium text-ink">Building your README</h3>
+                      <p className="mt-2 max-w-sm text-xs leading-relaxed text-ink/50">
+                        {LOADING_MESSAGES[loadMsgIdx]}
+                      </p>
+                      <div className="mt-5 flex items-center justify-center gap-1.5">
+                        <span className="generation-loader-dot" />
+                        <span className="generation-loader-dot" />
+                        <span className="generation-loader-dot" />
+                      </div>
+                    </motion.div>
                   </div>
                 )}
 
@@ -758,7 +752,7 @@ function AuthenticatedApp({ user, onSignOut }: { user: any; onSignOut: () => voi
                           className="min-h-full"
                         >
                           {view === "preview" ? (
-                            <div className="border border-bone rounded-2xl bg-paper overflow-hidden">
+                            <div className="border border-bone rounded-lg bg-paper overflow-hidden">
                               <div className="flex items-center gap-1.5 border-b border-bone px-4 py-2.5 bg-cream">
                                 <span className="w-2.5 h-2.5 rounded-full bg-bone" />
                                 <span className="w-2.5 h-2.5 rounded-full bg-bone" />
@@ -828,7 +822,7 @@ function MarkdownRender({ text }: { text: string }) {
       i++;
       const isTree = lang === "text" || buf.some((l) => l.includes("├──") || l.includes("└──"));
       out.push(
-        <div key={key++} className="my-5 rounded-2xl overflow-hidden border border-bone">
+        <div key={key++} className="my-5 rounded-lg overflow-hidden border border-bone">
           {lang && (
             <div className="px-4 py-2 bg-cream border-b border-bone flex items-center justify-between">
               <span className="text-[10px] font-medium uppercase tracking-[0.286em] text-ink/40">
@@ -842,7 +836,7 @@ function MarkdownRender({ text }: { text: string }) {
             </div>
           )}
           <pre
-            className={`p-4 font-mono text-sm overflow-x-auto leading-relaxed ${isTree ? "bg-paper text-ink" : "bg-ink text-paper"}`}
+            className={`p-4 font-mono text-sm overflow-x-auto leading-relaxed ${isTree ? "bg-paper text-ink" : "bg-ink text-white"}`}
           >
             <code>{buf.join("\n")}</code>
           </pre>
@@ -868,7 +862,7 @@ function MarkdownRender({ text }: { text: string }) {
         i++;
       }
       out.push(
-        <div key={key++} className="my-5 overflow-x-auto border border-bone rounded-2xl bg-paper">
+        <div key={key++} className="my-5 overflow-x-auto border border-bone rounded-lg bg-paper">
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="border-b border-bone">

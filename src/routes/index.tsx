@@ -30,7 +30,7 @@ const faqEntries = [
     name: "Do you support private repos?",
     acceptedAnswer: {
       "@type": "Answer",
-      text: "Yes. When you authenticate via GitHub OAuth, we can access your private repositories. The deep scanning works identically for public and private repositories.",
+      text: "Yes, when the deployment has a GitHub access token configured for repository scanning. The deep scan then uses the same analysis path for public and private repositories.",
     },
   },
   {
@@ -60,10 +60,9 @@ const jsonLd = {
       applicationCategory: "DeveloperApplication",
       operatingSystem: "Web",
       description:
-        "The most advanced AI README generator. Caveman analyzes your GitHub repository's actual source code to generate highly accurate, production-ready documentation instantly.",
+        "An AI README generator that analyzes a GitHub repository's actual source code to create grounded, production-ready documentation.",
       url: siteUrl,
       offers: { "@type": "Offer", price: "0", priceCurrency: "USD" },
-      aggregateRating: { "@type": "AggregateRating", ratingValue: "4.9", ratingCount: "128" },
       author: { "@type": "Organization", name: "Caveman" },
     },
     {
@@ -88,7 +87,7 @@ const jsonLd = {
           "@type": "HowToStep",
           position: 3,
           name: "Get your README",
-          text: "Caveman deep-scans your file tree and writes a production-ready README in about 47 seconds.",
+          text: "Caveman scans your file tree and writes a production-ready README within the configured generation window.",
         },
       ],
     },
@@ -172,8 +171,9 @@ function LandingPage() {
         deep-scans your actual source code - entry points, dependencies, API routes, and config
         files - to detect your framework, package manager, and architecture, then writes every
         section from real context. It supports 17+ customizable sections, technical to friendly
-        tones, and generates a README in about 47 seconds. Caveman is free during early access,
-        requires only a Google sign-in, and works with public and private repositories.
+        tones, and is designed to finish within the configured generation window. Caveman is free
+        during early access and requires a Google sign-in for generation. Public repositories work
+        by default; private repository scanning requires a configured GitHub access token.
       </div>
     </div>
   );

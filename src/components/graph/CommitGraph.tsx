@@ -47,16 +47,7 @@ const CONFIG = {
   FOCUS_ZOOM: 2.2,
 };
 
-const COLORS = [
-  "#1a1a1a",
-  "#ef4444",
-  "#10b981",
-  "#f59e0b",
-  "#8b5cf6",
-  "#ec4899",
-  "#2d2d2d",
-  "#f97316",
-];
+const COLORS = ["#8b5cf6", "#ef4444", "#10b981", "#f59e0b", "#ec4899", "#f97316", "#06b6d4"];
 
 function hashColor(sha: string): string {
   let hash = 0;
@@ -81,9 +72,9 @@ function getAvatarImage(url: string): HTMLImageElement | null {
 
 function EmptyState(): React.ReactNode {
   return (
-    <div className="w-full h-[500px] md:h-[600px] rounded-2xl border border-gray-200 bg-gray-50 flex flex-col items-center justify-center text-gray-400">
+    <div className="w-full h-[500px] md:h-[600px] rounded-lg border border-bone bg-paper flex flex-col items-center justify-center text-fog">
       <svg
-        className="w-12 h-12 mb-3 text-gray-300"
+        className="w-12 h-12 mb-3 text-bone"
         fill="none"
         viewBox="0 0 24 24"
         stroke="currentColor"
@@ -110,7 +101,7 @@ function CommitTooltip({
   if (!node) return null;
   return (
     <div
-      className="fixed pointer-events-none bg-gray-900 text-white rounded-xl px-4 py-3 shadow-2xl max-w-xs z-50 animate-in fade-in zoom-in-95 duration-150"
+      className="fixed pointer-events-none bg-ink text-cream rounded-lg px-4 py-3 shadow-2xl max-w-xs z-50 animate-in fade-in zoom-in-95 duration-150"
       style={{ left: pos.x + 16, top: pos.y + 16 }}
     >
       <div className="flex items-center gap-2 mb-1">
@@ -118,18 +109,18 @@ function CommitTooltip({
           <img
             src={node.data.avatar}
             alt={node.data.author}
-            className="w-6 h-6 rounded-full border border-white/20"
+            className="w-6 h-6 rounded-full border border-cream/20"
           />
         )}
         <div>
           <div className="text-xs font-semibold">{node.data.author}</div>
-          <div className="text-[10px] text-gray-400">
+          <div className="text-[10px] text-cream/65">
             {new Date(node.data.date).toLocaleDateString()}
           </div>
         </div>
       </div>
       <div className="font-medium text-sm truncate">{node.data.message}</div>
-      <div className="text-gray-500 text-[10px] mt-1 font-mono">{node.data.sha.slice(0, 7)}</div>
+      <div className="text-cream/50 text-[10px] mt-1 font-mono">{node.data.sha.slice(0, 7)}</div>
     </div>
   );
 }
@@ -143,13 +134,13 @@ function GraphControls({
 }): React.ReactNode {
   return (
     <>
-      <div className="absolute bottom-4 left-4 text-xs font-medium text-gray-400 pointer-events-none">
+      <div className="absolute bottom-4 left-4 text-xs font-medium text-fog pointer-events-none">
         Drag nodes · Click to inspect · Scroll to zoom · Double-click to focus
       </div>
       {selectedSha && (
         <button
           onClick={onClear}
-          className="absolute top-4 right-4 text-xs font-medium bg-gray-900 text-white px-3 py-1.5 rounded-full shadow-md hover:bg-gray-700 transition-colors pointer-events-auto cursor-pointer"
+          className="absolute top-4 right-4 text-xs font-medium bg-ink text-cream px-3 py-1.5 rounded-full shadow-md hover:bg-lavender-dark transition-colors pointer-events-auto cursor-pointer"
         >
           Clear selection
         </button>
@@ -354,10 +345,31 @@ export function CommitGraph({
       ctx.clearRect(0, 0, w, h);
 
       ctx.save();
-      ctx.fillStyle = "#f8fafc";
+      const darkTheme = document.documentElement.dataset.theme === "dark";
+      const palette = darkTheme
+        ? {
+            background: "#171126",
+            grid: "#3a2f50",
+            edge: "#3a2f50",
+            dimmedEdge: "#241b3b",
+            highlighted: "#f7f2ff",
+            arrow: "#6b5a8e",
+            nodeStroke: "#f7f2ff",
+          }
+        : {
+            background: "#f8fafc",
+            grid: "#e5e7eb",
+            edge: "#e5e7eb",
+            dimmedEdge: "#f1f5f9",
+            highlighted: "#1a1a1a",
+            arrow: "#cbd5e1",
+            nodeStroke: "#ffffff",
+          };
+
+      ctx.fillStyle = palette.background;
       ctx.fillRect(0, 0, w, h);
       const gridSize = 28 * cam.zoom;
-      ctx.fillStyle = "#e5e7eb";
+      ctx.fillStyle = palette.grid;
       const offX = (((w / 2 + cam.x * cam.zoom) % gridSize) + gridSize) % gridSize;
       const offY = (((h / 2 + cam.y * cam.zoom) % gridSize) + gridSize) % gridSize;
       for (let gx = offX; gx < w; gx += gridSize) {
@@ -400,7 +412,11 @@ export function CommitGraph({
         const cpy = my + (ny / len) * curve;
 
         ctx.quadraticCurveTo(cpx, cpy, edge.target.x, edge.target.y);
-        ctx.strokeStyle = highlighted ? "#1a1a1a" : dimmed ? "#f1f5f9" : "#e5e7eb";
+        ctx.strokeStyle = highlighted
+          ? palette.highlighted
+          : dimmed
+            ? palette.dimmedEdge
+            : palette.edge;
         ctx.lineWidth = (highlighted ? 2.5 : 1.5) / cam.zoom;
         ctx.stroke();
 
@@ -419,7 +435,11 @@ export function CommitGraph({
           ty - arrowLen * Math.sin(angle + Math.PI / 7),
         );
         ctx.closePath();
-        ctx.fillStyle = highlighted ? "#1a1a1a" : dimmed ? "#f1f5f9" : "#cbd5e1";
+        ctx.fillStyle = highlighted
+          ? palette.highlighted
+          : dimmed
+            ? palette.dimmedEdge
+            : palette.arrow;
         ctx.fill();
       }
 
@@ -461,7 +481,7 @@ export function CommitGraph({
 
         ctx.beginPath();
         ctx.arc(n.x, n.y, r, 0, Math.PI * 2);
-        ctx.strokeStyle = isSelected ? "#111827" : "#ffffff";
+        ctx.strokeStyle = isSelected ? palette.highlighted : palette.nodeStroke;
         ctx.lineWidth = (isSelected ? 2.5 : 1.5) / cam.zoom;
         ctx.stroke();
 
@@ -587,7 +607,7 @@ export function CommitGraph({
   if (nodeData.length === 0) return <EmptyState />;
 
   return (
-    <div className="relative w-full h-[500px] md:h-[600px] rounded-2xl border border-gray-200 bg-white overflow-hidden shadow-sm">
+    <div className="relative w-full h-[500px] md:h-[600px] rounded-lg border border-bone bg-paper overflow-hidden shadow-sm">
       <canvas
         ref={canvasRef}
         className={`w-full h-full ${hoverNode ? "cursor-pointer" : "cursor-grab"} active:cursor-grabbing transition-[filter] duration-150`}
@@ -602,10 +622,10 @@ export function CommitGraph({
       <CommitTooltip node={hoverNode} pos={hoverPos} />
 
       {loading && (
-        <div className="absolute inset-0 flex items-center justify-center bg-white/80 transition-opacity duration-500">
+        <div className="absolute inset-0 flex items-center justify-center bg-paper/80 transition-opacity duration-500">
           <div className="flex flex-col items-center gap-2">
-            <div className="w-6 h-6 rounded-full border-2 border-gray-900 border-t-transparent animate-spin" />
-            <span className="text-sm font-medium text-gray-600">Building graph...</span>
+            <div className="w-6 h-6 rounded-full border-2 border-ink border-t-transparent animate-spin" />
+            <span className="text-sm font-medium text-fog">Building graph...</span>
           </div>
         </div>
       )}

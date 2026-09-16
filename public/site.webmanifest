@@ -8,15 +8,15 @@
   "theme_color": "#F5F5F5",
   "icons": [
     {
-      "src": "/logo-256.png",
-      "sizes": "256x256",
-      "type": "image/png"
+      "src": "/yeti-mascot.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
     },
     {
-      "src": "/logo-256.png",
-      "sizes": "192x192",
-      "type": "image/png",
-      "purpose": "any maskable"
+      "src": "/yeti-mascot.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
     }
   ]
 }

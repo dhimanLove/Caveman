@@ -1,6 +1,25 @@
 import { Link } from "@tanstack/react-router";
 import { cn } from "@/lib/utils";
 
+export function CavemanMark({
+  className,
+  iconClassName,
+}: {
+  className?: string;
+  iconClassName?: string;
+}) {
+  return (
+    <span className={cn("w-8 h-8 flex items-center justify-center shrink-0 text-ink", className)}>
+      <img
+        src="/yeti-mascot.svg"
+        alt=""
+        aria-hidden="true"
+        className={cn("logo-mark-image block h-full w-full object-contain", iconClassName)}
+      />
+    </span>
+  );
+}
+
 export function Logo({
   className,
   imgClassName,
@@ -12,21 +31,12 @@ export function Logo({
 }) {
   return (
     <Link to={href} className={cn("flex items-center gap-2.5 group", className)}>
-      <span
+      <CavemanMark
         className={cn(
-          "w-8 h-8 rounded-md overflow-hidden bg-cream border border-bone flex items-center justify-center shrink-0",
-          "transition-colors duration-300 group-hover:border-ink/30",
+          "transition-colors duration-300 group-hover:border-electric-iris/50",
           imgClassName,
         )}
-      >
-        <img
-          src="/logo-256.png"
-          alt="Caveman logo"
-          width={32}
-          height={32}
-          className="w-full h-full object-contain"
-        />
-      </span>
+      />
       <span className="text-[16px] font-medium tracking-[0px] text-ink">Caveman</span>
     </Link>
   );

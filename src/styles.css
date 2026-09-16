@@ -24,7 +24,11 @@
   --color-err: #d92d20;
 
   /* Gradient - lavender accent for text moments */
-  --gradient-electric-iris: linear-gradient(100deg, #6d28d9, #a78bfa 50%, #8b5cf6 100%);
+  --gradient-electric-iris:
+    radial-gradient(circle at 18% 32%, #8b5cf6 0%, transparent 42%),
+    radial-gradient(circle at 78% 68%, #fb7185 0%, transparent 46%),
+    radial-gradient(circle at 54% 42%, #facc15 0%, transparent 38%),
+    linear-gradient(120deg, #6d28d9 0%, #c084fc 38%, #fb7185 70%, #facc15 100%);
 
   /* Font Families */
   --font-relative:
@@ -60,23 +64,23 @@
      (e.g. max-width:16px) instead of Tailwind's real container scale. */
 
   /* Border Radius */
-  --radius-sm: 4px;
-  --radius-md: 8px;
-  --radius-lg: 8px;
-  --radius-2xl: 8px;
+  --radius-sm: 8px;
+  --radius-md: 14px;
+  --radius-lg: 18px;
+  --radius-2xl: 24px;
   --radius-full: 9999px;
 
   /* Named Radii */
-  --radius-cards: 8px;
+  --radius-cards: 18px;
   --radius-pills: 9999px;
   --radius-badges: 9999px;
-  --radius-inputs: 4px;
-  --radius-buttons: 4px;
+  --radius-inputs: 14px;
+  --radius-buttons: 14px;
 
   /* Shadows - essentially absent (flat system) */
-  --shadow-subtle: 0 0 0 0 rgba(0, 0, 0, 0);
-  --shadow-md: 0 0 0 0 rgba(0, 0, 0, 0);
-  --shadow-card: 0 0 0 0 rgba(0, 0, 0, 0);
+  --shadow-subtle: 0 1px 3px rgba(15, 15, 15, 0.05);
+  --shadow-md: 0 14px 30px -22px rgba(15, 15, 15, 0.24);
+  --shadow-card: 0 24px 60px -34px rgba(15, 15, 15, 0.28);
 
   /* Surfaces */
   --surface-canvas: #f5f0ff;
@@ -105,7 +109,65 @@
   --color-border: var(--color-bone);
   --color-input: var(--color-bone);
   --color-ring: var(--color-lavender);
-  --radius: 4px;
+  --radius: 14px;
+}
+
+:root {
+  color-scheme: light;
+  --navbar-surface: #0f0f0f;
+  --navbar-text: #f5f0ff;
+}
+
+/* The same design tokens drive both themes so every route changes together. */
+html[data-theme="dark"] {
+  color-scheme: dark;
+  /* Coolors accent palette with a deeper charcoal surface for legibility. */
+  --color-electric-iris: #ff312e;
+  --color-soft-lilac: #515052;
+  --color-iris-mist: #1b1e25;
+  --color-ink: #fffffa;
+  --color-graphite: #20242c;
+  --color-slate: #515052;
+  --color-iron: #b4b5bd;
+  --color-fog: #ecebe4;
+  --color-bone: #515052;
+  --color-cream: #000103;
+  --color-paper: #171a21;
+  --color-lavender: #ff312e;
+  --color-lavender-light: #fffffa;
+  --color-lavender-dark: #ff312e;
+  --color-err: #ff312e;
+  --gradient-electric-iris:
+    radial-gradient(circle at 18% 32%, #8b5cf6 0%, transparent 42%),
+    radial-gradient(circle at 78% 68%, #fb7185 0%, transparent 46%),
+    radial-gradient(circle at 54% 42%, #facc15 0%, transparent 38%),
+    linear-gradient(120deg, #4c1d95 0%, #a78bfa 38%, #fb7185 70%, #facc15 100%);
+  --surface-canvas: #000103;
+  --surface-card: #171a21;
+  --surface-elevated: #282c35;
+  --surface-tinted: #20242c;
+  --shadow-subtle: 0 1px 3px rgba(0, 1, 3, 0.42);
+  --shadow-md: 0 18px 40px -26px rgba(0, 1, 3, 0.86);
+  --shadow-card: 0 26px 70px -38px rgba(0, 1, 3, 0.98);
+  --color-secondary-foreground: #000103;
+  --color-accent-foreground: #000103;
+  --navbar-surface: #171a21;
+  --navbar-text: #fffffa;
+}
+
+html[data-theme="dark"] .dot-grid {
+  background-image: radial-gradient(
+    circle,
+    color-mix(in srgb, var(--color-bone) 70%, transparent) 1px,
+    transparent 1px
+  );
+}
+
+html.theme-transition,
+html.theme-transition * {
+  transition-property: background-color, border-color, color, fill, stroke, box-shadow !important;
+  transition-duration: 280ms !important;
+  transition-timing-function: ease !important;
 }
 
 @layer base {
@@ -123,11 +185,281 @@
     background-color: var(--color-cream);
     color: var(--color-ink);
     font-weight: 300;
+    transition:
+      background-color 280ms ease,
+      color 280ms ease;
+  }
+  .logo-mark-image {
+    opacity: 0.84;
+  }
+  html[data-theme="dark"] .logo-mark-image {
+    filter: invert(1);
+    opacity: 0.9;
   }
   ::selection {
     background: var(--color-lavender);
     color: #ffffff;
   }
+}
+
+/* A few legacy arbitrary utilities used 4px corners. Keep them visually
+   consistent with the rounded design system without rewriting every surface. */
+.rounded-\[4px\] {
+  border-radius: var(--radius-buttons);
+}
+.rounded-\[5px\] {
+  border-radius: var(--radius-cards);
+}
+
+.theme-toggle-icon {
+  position: relative;
+  display: inline-flex;
+  width: 18px;
+  height: 18px;
+  align-items: center;
+  justify-content: center;
+}
+.theme-toggle-icon .theme-icon {
+  position: absolute;
+  transition:
+    opacity 360ms cubic-bezier(0.22, 1, 0.36, 1),
+    transform 420ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+.theme-toggle-icon .theme-icon-sun {
+  opacity: 0;
+  transform: rotate(-90deg) scale(0.6);
+}
+.theme-toggle-icon.is-dark .theme-icon-moon {
+  opacity: 0;
+  transform: rotate(90deg) scale(0.6);
+}
+.theme-toggle-icon.is-dark .theme-icon-sun {
+  opacity: 1;
+  transform: rotate(0deg) scale(1);
+}
+
+.site-navbar {
+  transition:
+    background-color 360ms ease,
+    border-color 360ms ease,
+    box-shadow 360ms ease;
+}
+
+.generation-top-loader {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 100;
+  width: 35%;
+  height: 3px;
+  pointer-events: none;
+  background: linear-gradient(90deg, transparent, var(--color-electric-iris), #facc15, transparent);
+  filter: blur(0.2px);
+  box-shadow: 0 0 10px color-mix(in srgb, var(--color-electric-iris) 70%, transparent);
+  animation: generation-top-loader 1.4s ease-in-out infinite;
+}
+
+.generation-illustration-loader {
+  background:
+    radial-gradient(circle at 50% 42%, color-mix(in srgb, var(--color-electric-iris) 8%, transparent), transparent 32%),
+    var(--color-paper);
+}
+
+.generation-loader-art {
+  isolation: isolate;
+}
+
+.generation-loader-orbit {
+  position: absolute;
+  inset: 12%;
+  border: 1px solid color-mix(in srgb, var(--color-electric-iris) 24%, transparent);
+  border-radius: 42% 58% 55% 45%;
+  animation: generation-loader-orbit 7s linear infinite;
+}
+
+.generation-loader-orbit-one {
+  transform: rotate(24deg) scale(1.08);
+}
+
+.generation-loader-orbit-two {
+  inset: 4%;
+  border-color: color-mix(in srgb, #facc15 22%, transparent);
+  border-radius: 55% 45% 42% 58%;
+  animation-direction: reverse;
+  animation-duration: 9s;
+}
+
+.generation-loader-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 999px;
+  background: var(--color-electric-iris);
+  animation: generation-loader-dot 1.2s ease-in-out infinite;
+}
+
+.generation-loader-dot:nth-child(2) {
+  animation-delay: 0.16s;
+}
+
+.generation-loader-dot:nth-child(3) {
+  animation-delay: 0.32s;
+}
+
+@keyframes generation-loader-orbit {
+  to {
+    transform: rotate(384deg) scale(1.08);
+  }
+}
+
+@keyframes generation-loader-dot {
+  0%,
+  100% {
+    transform: translateY(0);
+    opacity: 0.35;
+  }
+  50% {
+    transform: translateY(-3px);
+    opacity: 1;
+  }
+}
+
+@keyframes generation-top-loader {
+  0% {
+    transform: translateX(-120%);
+    opacity: 0.35;
+  }
+  45% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateX(340%);
+    opacity: 0.35;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .generation-top-loader,
+  .generation-loader-orbit,
+  .generation-loader-dot {
+    animation: none;
+  }
+
+  .generation-top-loader {
+    left: 0;
+    width: 100%;
+    opacity: 0.8;
+  }
+}
+
+.navbar-theme-toggle {
+  display: flex;
+  align-items: center;
+  margin-right: 0.5rem;
+}
+
+@media (max-width: 639px) {
+  .navbar-theme-toggle {
+    margin-right: 0.25rem;
+  }
+}
+
+/* Generate controls stay readable against both paper and charcoal surfaces. */
+.generate-control-label {
+  color: color-mix(in srgb, var(--color-ink) 72%, transparent);
+}
+
+.generate-helper-text {
+  color: color-mix(in srgb, var(--color-ink) 66%, transparent);
+}
+
+.generate-style-option {
+  min-height: 52px;
+  border-radius: var(--radius-buttons);
+  box-shadow: 0 1px 0 color-mix(in srgb, var(--color-ink) 6%, transparent);
+}
+
+.generate-style-option:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-subtle);
+}
+
+.generate-style-option.is-selected {
+  box-shadow: 0 10px 24px -18px color-mix(in srgb, var(--color-electric-iris) 90%, transparent);
+}
+
+.generate-style-description {
+  color: color-mix(in srgb, var(--color-ink) 68%, transparent);
+  line-height: 1.45;
+}
+
+.generate-style-option.is-selected .generate-style-description {
+  color: color-mix(in srgb, #ffffff 86%, transparent);
+}
+.navbar-pill {
+  background: var(--navbar-surface);
+  color: var(--navbar-text);
+  border-color: color-mix(in srgb, var(--navbar-text) 14%, transparent);
+  box-shadow: var(--shadow-subtle);
+  transition:
+    background-color 360ms ease,
+    box-shadow 360ms ease;
+}
+.navbar-pill:hover {
+  box-shadow: var(--shadow-md);
+}
+.navbar-link {
+  position: relative;
+  color: var(--navbar-text);
+  transition:
+    background-color 220ms ease,
+    color 220ms ease,
+    opacity 220ms ease;
+}
+
+.navbar-link::after {
+  content: "";
+  position: absolute;
+  left: 0.75rem;
+  right: 0.75rem;
+  bottom: 0.3rem;
+  height: 2px;
+  border-radius: 999px;
+  background: var(--color-electric-iris);
+  opacity: 0;
+  transform: scaleX(0.35);
+  transform-origin: center;
+  transition:
+    opacity 180ms ease,
+    transform 260ms cubic-bezier(0.22, 1, 0.36, 1);
+  pointer-events: none;
+}
+
+.navbar-link.active-link::after {
+  opacity: 1;
+  transform: scaleX(1);
+}
+
+.koboyo-illustration {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-ink);
+  transition:
+    color 280ms ease,
+    transform 420ms cubic-bezier(0.22, 1, 0.36, 1),
+    filter 280ms ease;
+}
+.group:hover .koboyo-illustration {
+  transform: translateY(-4px) rotate(-2deg) scale(1.04);
+}
+.koboyo-illustration img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+html[data-theme="dark"] .koboyo-illustration img {
+  filter: invert(1);
 }
 
 /* Dot grid texture */
@@ -220,10 +552,13 @@
 }
 @keyframes gradient-shimmer {
   0% {
-    background-position: -200% center;
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
   }
   100% {
-    background-position: 200% center;
+    background-position: 0% 50%;
   }
 }
 @keyframes pulse-ring {
@@ -264,12 +599,13 @@
   animation: caret-blink 1.1s step-end infinite;
 }
 @utility animate-gradient-text {
-  background: linear-gradient(100deg, #3b82f6, #8b5cf6 35%, #fbbf24 55%, #8b5cf6 75%, #3b82f6);
-  background-size: 200% auto;
+  background: var(--gradient-electric-iris);
+  background-size: 240% 240%;
+  background-blend-mode: screen;
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
-  animation: gradient-shimmer 3s ease-in-out infinite;
+  animation: gradient-shimmer 14s ease-in-out infinite;
 }
 @utility animate-blink {
   animation: blink-soft 2s ease-in-out infinite;
@@ -443,11 +779,19 @@
 
 /* Gradient text - signature accent moment */
 .gradient-text {
-  background: linear-gradient(100deg, #3b82f6, #8b5cf6 35%, #fbbf24 55%, #8b5cf6 75%, #3b82f6);
-  background-size: 200% auto;
+  background: var(--gradient-electric-iris);
+  background-size: 240% 240%;
+  background-blend-mode: screen;
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
-  animation: gradient-shimmer 3s ease-in-out infinite;
-  filter: drop-shadow(0 0 14px rgba(99, 102, 241, 0.35));
+  animation: gradient-shimmer 14s ease-in-out infinite;
+  filter: drop-shadow(0 0 8px color-mix(in srgb, var(--color-electric-iris) 22%, transparent));
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gradient-text,
+  .animate-gradient-text {
+    animation: none;
+  }
 }

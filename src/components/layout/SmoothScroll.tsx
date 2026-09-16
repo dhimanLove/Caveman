@@ -15,6 +15,7 @@ export function SmoothScroll({ children }: { children: ReactNode }) {
 
     let lenis: any = null;
     let rafId = 0;
+    let onLoad: (() => void) | null = null;
 
     (async () => {
       const { default: Lenis } = await import("lenis");
@@ -35,11 +36,13 @@ export function SmoothScroll({ children }: { children: ReactNode }) {
 
       // Recalculate trigger positions after route mount & asset load
       requestAnimationFrame(() => ScrollTrigger.refresh());
-      window.addEventListener("load", () => ScrollTrigger.refresh());
+      onLoad = () => ScrollTrigger.refresh();
+      window.addEventListener("load", onLoad);
     })();
 
     return () => {
       cancelAnimationFrame(rafId);
+      if (onLoad) window.removeEventListener("load", onLoad);
       lenis?.destroy();
     };
   }, [location.pathname]);

@@ -1,6 +1,7 @@
 import { useRef, useEffect } from "react";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
+import { KoboyoIllustration } from "@/components/illustrations/KoboyoIllustration";
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -72,56 +73,74 @@ const IconDatabase = ({ size = 35 }: { size?: number }) => (
 const features = [
   {
     icon: <IconMonitor />,
+    art: "personDebugApi" as const,
+    artAlt: "hand-drawn person debugging an API",
     title: "Deep code analysis",
     desc: "Reads your actual source files - entry points, components, APIs, and config. Writes docs that match your real codebase.",
     tag: "Core",
   },
   {
     icon: <IconBooks />,
+    art: "personApi" as const,
+    artAlt: "hand-drawn person configuring an API",
     title: "Stack auto-detection",
     desc: "Detects React, Next.js, Tailwind, Prisma, tRPC, Express, Django, and more from your dependencies and file tree.",
     tag: "Detection",
   },
   {
     icon: <IconBox />,
+    art: "personServer" as const,
+    artAlt: "hand-drawn person configuring a server",
     title: "Package manager aware",
     desc: "Reads lockfiles to generate accurate install commands - npm, pnpm, yarn, bun. Even handles monorepo workspaces.",
     tag: "CLI",
   },
   {
     icon: <IconArchitect />,
+    art: "personDesignSchema" as const,
+    artAlt: "hand-drawn person designing a data schema",
     title: "Architecture mapping",
     desc: "Identifies your project structure, component hierarchy, API routes, and data models. Generates accurate architecture diagrams.",
     tag: "Structure",
   },
   {
     icon: <IconDatabase />,
+    art: "nervousFace" as const,
+    artAlt: "hand-drawn expressive face for quality feedback",
     title: "Health scoring",
     desc: "Built-in README quality checker scores your docs against 11 criteria. Missing sections? It auto-generates them.",
     tag: "Quality",
   },
   {
     icon: <IconBooks />,
+    art: "faceBook" as const,
+    artAlt: "hand-drawn face behind a book illustration",
     title: "17+ customizable sections",
     desc: "Installation, Usage, API Docs, Contributing, Features, Architecture, Testing, Deployment - toggle any combination.",
     tag: "Flexible",
   },
   {
     icon: <IconArchitect />,
+    art: "faceTasting" as const,
+    artAlt: "hand-drawn expressive face for tone and style",
     title: "Tone & style control",
     desc: "Switch between Technical, Friendly, or Enterprise tone. Choose Minimal, Standard, or Comprehensive depth. One click.",
     tag: "Custom",
   },
   {
     icon: <IconMonitor />,
+    art: "personDeployRelease" as const,
+    artAlt: "hand-drawn person deploying a release",
     title: "Under 90 seconds",
-    desc: "URL to polished README in ~47s on average. Includes markdown preview, inline editor, copy, and download.",
+    desc: "Designed to turn a repository or project description into a polished README in under 90 seconds, with preview, editing, copy, and download.",
     tag: "Speed",
   },
   {
     icon: <IconDatabase />,
+    art: "personBuildDashboard" as const,
+    artAlt: "hand-drawn person building a dashboard",
     title: "GitHub deep scan",
-    desc: "Traverses up to 3 directory levels. Fetches 50+ source files - components, API routes, config, and schemas - before writing.",
+    desc: "Traverses up to 3 directory levels and selects a bounded set of high-signal source files - components, API routes, config, and schemas - before writing.",
     tag: "Depth",
   },
 ];
@@ -169,7 +188,7 @@ export function Features() {
             >
               <div className="flex items-start justify-between mb-6">
                 <div className="text-ink transition-colors duration-300 group-hover:text-electric-iris">
-                  {f.icon}
+                  <KoboyoIllustration icon={f.art} alt={f.artAlt} fallback={f.icon} />
                 </div>
                 <span className="text-xs text-fog group-hover:text-electric-iris transition-colors duration-300">
                   {f.tag}

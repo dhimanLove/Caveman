@@ -14,16 +14,14 @@ import { motion, AnimatePresence } from "framer-motion";
 import appCss from "../styles.css?url";
 import { SmoothScroll } from "../components/layout/SmoothScroll";
 import { EarlyAccessBanner } from "../components/layout/EarlyAccessBanner";
+import { CavemanMark } from "../components/layout/Logo";
+import { ThemeProvider } from "../components/layout/ThemeProvider";
 
 function NotFoundComponent() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-cream px-4">
       <div className="max-w-md text-center">
-        <img
-          src="/logo-256.png"
-          alt="Caveman logo"
-          className="w-16 h-16 mx-auto rounded-[4px] border border-bone bg-paper object-contain p-1"
-        />
+        <CavemanMark className="w-16 h-16 mx-auto" iconClassName="w-9 h-9" />
         <h1
           className="mt-6 text-7xl font-light text-ink"
           style={{ fontFamily: "var(--font-relative)" }}
@@ -82,7 +80,6 @@ const jsonLd = {
       description:
         "AI-powered README generator for developers. Generate professional, accurate documentation from GitHub URLs or project descriptions. Caveman deep-scans source code to write READMEs that match your actual architecture.",
       offers: { "@type": "Offer", price: "0", priceCurrency: "USD" },
-      aggregateRating: { "@type": "AggregateRating", ratingValue: "4.9", ratingCount: "128" },
       featureList: [
         "Deep code analysis",
         "Stack auto-detection",
@@ -151,8 +148,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
         href: "https://api.fontshare.com/v2/css?f[]=satoshi@300,400,500&display=swap",
       },
       { rel: "stylesheet", href: appCss },
-      { rel: "icon", href: "/favicon-32.png", type: "image/png", sizes: "32x32" },
-      { rel: "icon", href: "/favicon-16.png", type: "image/png", sizes: "16x16" },
+      { rel: "icon", href: "/yeti-mascot.svg", type: "image/svg+xml" },
       { rel: "apple-touch-icon", href: "/apple-touch-icon.png" },
       { rel: "manifest", href: "/site.webmanifest" },
     ],
@@ -171,8 +167,22 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 
 function RootShell({ children }: { children: ReactNode }) {
   return (
-    <html lang="en">
+    <html lang="en" data-theme="light" suppressHydrationWarning>
       <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              try {
+                var savedTheme = localStorage.getItem('caveman-theme');
+                var preferredTheme = savedTheme === 'dark' || savedTheme === 'light'
+                  ? savedTheme
+                  : (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+                document.documentElement.dataset.theme = preferredTheme;
+                document.documentElement.style.colorScheme = preferredTheme;
+              } catch (e) {}
+            `,
+          }}
+        />
         <script async src="https://www.googletagmanager.com/gtag/js?id=G-DDBX3YGFSR" />
         <script
           dangerouslySetInnerHTML={{
@@ -199,21 +209,23 @@ function RootComponent() {
   const location = useLocation();
 
   return (
-    <QueryClientProvider client={queryClient}>
-      <EarlyAccessBanner />
-      <SmoothScroll>
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={location.pathname}
-            initial={{ opacity: 0, y: 6 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -4 }}
-            transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
-          >
-            <Outlet />
-          </motion.div>
-        </AnimatePresence>
-      </SmoothScroll>
-    </QueryClientProvider>
+    <ThemeProvider>
+      <QueryClientProvider client={queryClient}>
+        <EarlyAccessBanner />
+        <SmoothScroll>
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={location.pathname}
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -4 }}
+              transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
+            >
+              <Outlet />
+            </motion.div>
+          </AnimatePresence>
+        </SmoothScroll>
+      </QueryClientProvider>
+    </ThemeProvider>
   );
 }

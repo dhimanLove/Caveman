@@ -1,6 +1,7 @@
 import { useRef, useEffect } from "react";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
+import { KoboyoIllustration } from "@/components/illustrations/KoboyoIllustration";
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -41,6 +42,11 @@ export function Preview() {
     <section ref={sectionRef} className="py-24 md:py-32 bg-cream relative overflow-hidden">
       <div className="relative mx-auto max-w-[1200px] px-6">
         <div className="max-w-[768px] mx-auto text-center mb-14">
+          <KoboyoIllustration
+            icon="personWebsite"
+            alt="hand-drawn person demonstrating a website"
+            className="h-20 w-20 mb-5"
+          />
           <p className="preview-item text-sm text-fog uppercase tracking-[0.2em] mb-4">
             What you get
           </p>

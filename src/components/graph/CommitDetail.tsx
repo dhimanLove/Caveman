@@ -59,7 +59,7 @@ export function CommitDetail({ node, onClose }: CommitDetailProps) {
           animate={{ opacity: 1, y: 0, scale: 1 }}
           exit={{ opacity: 0, y: -10, scale: 0.97 }}
           transition={{ duration: 0.2, ease: "easeOut" }}
-          className="rounded-2xl border border-bone bg-paper p-5 shadow-lg"
+          className="rounded-lg border border-bone bg-paper p-5 shadow-lg"
         >
           {/* Header */}
           <div className="flex items-start justify-between gap-3 mb-3">

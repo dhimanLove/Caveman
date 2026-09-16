@@ -13,7 +13,7 @@ import { nitro } from "nitro/vite";
 //     deployed runtime; NITRO_PRESET overrides still win via auto-detect)
 //   - VITE_* env injection, `@` -> src alias, React/TanStack dedupe,
 //     prebundling of react/react-dom, lightningcss, dev server on port 8080.
-export default defineConfig(async (env: ConfigEnv) => {
+export default defineConfig((env: ConfigEnv) => {
   const { command, mode } = env;
 
   const loadedEnv = loadEnv(mode, process.cwd(), "VITE_");
@@ -36,7 +36,7 @@ export default defineConfig(async (env: ConfigEnv) => {
 
   return {
     define: envDefine,
-    css: { transformer: "lightningcss" },
+    css: { transformer: "lightningcss" as const },
     resolve: {
       alias: { "@": `${process.cwd()}/src` },
       tsconfigPaths: true,

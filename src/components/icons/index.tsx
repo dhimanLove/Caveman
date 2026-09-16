@@ -167,6 +167,25 @@ export const IconPencil = createIcon(
   <path d="M146.1 8.7c-3.1.6-4.5 2-93.4 95.8l-25.6 27-9 20.1c-9.1 20-10 22.7-8.1 23.9.5.3 10.2-4 21.4-9.6l20.4-10.2 16.9-18.1A6364 6364 0 0 1 143 59.2a330 330 0 0 0 24.8-27.5c4.8-11-9-25.6-21.7-23" />,
 );
 
+export const IconPickaxe = createIcon(
+  "pickaxe",
+  "0 0 24 24",
+  <>
+    <path
+      d="m5 20 9.7-9.7M13.3 4.2 19.8 10M12.3 5.2l2.4-2.4c1.1-1.1 2.9-1.1 4 0l2.5 2.5c1.1 1.1 1.1 2.9 0 4l-2.4 2.4"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+    <path
+      d="m4.2 19.8 1.6-1.6 1.8 1.8L6 21.6a1.3 1.3 0 0 1-1.8 0 1.3 1.3 0 0 1 0-1.8Z"
+      fill="currentColor"
+    />
+  </>,
+);
+
 export const IconPlus = createIcon(
   "plus",
   "0 0 125 124",

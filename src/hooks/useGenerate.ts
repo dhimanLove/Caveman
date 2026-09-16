@@ -128,6 +128,13 @@ function classifyError(err: unknown): { message: string; cooldown: number } {
   if (rawMessage.includes("Provide a GitHub URL")) {
     return { message: "Provide a GitHub URL or a project description.", cooldown: 0 };
   }
+  if (rawMessage.includes("Could not access repository files")) {
+    return {
+      message:
+        "Could not read the repository files. Private repos require a configured GitHub access token.",
+      cooldown: 0,
+    };
+  }
 
   // Rate limit / cooldown errors
   if (

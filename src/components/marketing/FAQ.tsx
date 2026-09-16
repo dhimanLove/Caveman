@@ -9,11 +9,11 @@ gsap.registerPlugin(ScrollTrigger);
 const faqs = [
   {
     q: "Does Caveman actually read my source code?",
-    a: "Yes. It fetches your file tree from GitHub, identifies entry points, and sends up to 25 source files (at 5000 chars each) to the AI. It reads your components, APIs, config files, and dependencies to understand what you built.",
+    a: "Yes. It fetches your file tree from GitHub, identifies entry points, and sends a bounded set of high-signal source snippets to the AI. It reads your components, APIs, config files, and dependencies to understand what you built.",
   },
   {
     q: "Do you support private repos?",
-    a: "Yes - paste any GitHub URL. For private repos, Caveman uses the public file tree via GitHub's API. Deep scanning works best on public repos or repos you have read access to.",
+    a: "Yes - paste any GitHub URL. Public repos work without extra setup; private repos are supported when the deployment has a configured GitHub access token.",
   },
   {
     q: "What sections can I include?",

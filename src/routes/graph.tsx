@@ -390,11 +390,11 @@ function GraphPage() {
                 </div>
 
                 <div className="lg:w-[300px] shrink-0 flex flex-col gap-3">
-                  <div className="max-h-[500px] md:max-h-none overflow-auto rounded-2xl">
+                  <div className="max-h-[500px] md:max-h-none overflow-auto rounded-lg">
                     <CommitDetail node={selectedNode} onClose={() => setSelectedNode(null)} />
 
                     {!selectedNode && (
-                      <div className="rounded-2xl border border-bone bg-paper p-6 text-center">
+                      <div className="rounded-lg border border-bone bg-paper p-6 text-center">
                         <svg
                           width="24"
                           height="24"

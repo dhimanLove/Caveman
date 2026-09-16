@@ -57,6 +57,7 @@ function detectMode(raw: string): InputMode {
 export function Hero() {
   const sectionRef = useRef<HTMLElement>(null);
   const outerRefs = useRef<Map<string, HTMLDivElement>>(new Map());
+  const bobRefs = useRef<Map<string, HTMLDivElement>>(new Map());
   const innerRefs = useRef<Map<string, HTMLDivElement>>(new Map());
   const parallax = useRef<Map<string, { x: gsap.QuickToFunc; y: gsap.QuickToFunc }>>(new Map());
   const [repoUrl, setRepoUrl] = useState("");
@@ -163,7 +164,10 @@ export function Hero() {
           },
         });
 
-        gsap.to(outer, {
+        const bob = bobRefs.current.get(svg.key);
+        if (!bob) return;
+
+        gsap.to(bob, {
           y: `+=${i % 2 === 0 ? -10 : 10}`,
           duration: 3.5 + i * 0.5,
           yoyo: true,
@@ -361,12 +365,20 @@ export function Hero() {
           >
             <div
               ref={(el) => {
-                if (el) innerRefs.current.set(svg.key, el);
+                if (el) bobRefs.current.set(svg.key, el);
               }}
-              className="cursor-pointer"
+              className="hero-float-bob"
               style={{ willChange: "transform" }}
             >
-              <FloatSvg type={svg.key} />
+              <div
+                ref={(el) => {
+                  if (el) innerRefs.current.set(svg.key, el);
+                }}
+                className="cursor-pointer"
+                style={{ willChange: "transform" }}
+              >
+                <FloatSvg type={svg.key} />
+              </div>
             </div>
           </div>
         ))}

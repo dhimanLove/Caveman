@@ -78,7 +78,11 @@ function toFriendlyGenerationError(rawMessage: string): string | null {
     m.includes("token limit") ||
     m.includes("context window")
   ) {
-    return "This project is too large to generate at the selected detail level. Try the Minimal style, or reduce the number of sections.";
+    return "This project is too large to generate at the selected detail level. Try reducing the number of sections or use a smaller repository.";
+  }
+
+  if (m.includes("could not access repository files")) {
+    return "Could not read the repository files. Public repos work without extra setup; private repos require a configured GitHub access token.";
   }
 
   // Generic wrapped "README generation failed: ..." — the tail is raw provider
@@ -255,6 +259,7 @@ export const generateSecure = createServerFn({ method: "POST" })
         message.includes("timeout") ||
         message.includes("empty response") ||
         message.includes("Provide a GitHub URL") ||
+        message.includes("Could not access repository files") ||
         message.includes("AI rate limited") ||
         message.includes("temporarily unavailable")
       ) {

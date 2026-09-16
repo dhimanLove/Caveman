@@ -162,7 +162,10 @@ async function fetchRawFile(
   try {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 3000);
-    const res = await fetch(url, { signal: controller.signal });
+    const res = await fetch(url, {
+      headers: getGitHubHeaders(),
+      signal: controller.signal,
+    });
     clearTimeout(timeout);
     if (res.ok) return await res.text();
   } catch {
@@ -433,16 +436,19 @@ async function scanRepository(
   );
   otherSource.sort((a, b) => a.length - b.length);
 
-  // Merge: high-signal first, then other source, capped at 35 total
+  // Merge: high-signal first, then other source. Keep a broad, grounded
+  // corpus so route-heavy and private repositories do not collapse into a
+  // README-only summary. The prompt is still clamped separately below.
+  const MAX_FETCHED_FILES = 80;
   for (const p of highSignalSource) {
-    if (filesToFetch.length >= 35) break;
+    if (filesToFetch.length >= MAX_FETCHED_FILES) break;
     if (!prioritySet.has(p)) {
       prioritySet.add(p);
       filesToFetch.push(p);
     }
   }
   for (const p of otherSource) {
-    if (filesToFetch.length >= 35) break;
+    if (filesToFetch.length >= MAX_FETCHED_FILES) break;
     if (!prioritySet.has(p)) {
       prioritySet.add(p);
       filesToFetch.push(p);
@@ -1363,6 +1369,10 @@ function buildRepoFacts(options: {
   pushFramework("Firebase", /\bfirebase\b/.test(depStr));
   pushFramework("Supabase", /\bsupabase\b/.test(depStr));
   pushFramework("Socket.io", /\bsocket\.io\b/.test(depStr));
+  pushFramework(
+    "Node.js",
+    Boolean(pkgText) && (languages.includes("JavaScript") || languages.includes("TypeScript")),
+  );
 
   // Python / Cargo framework checks
   const cargoLower = (cargoText || "").toLowerCase();
@@ -1591,7 +1601,11 @@ function clampContextToBudget(
   exportedSymbols: { file: string; symbol: string; kind: string }[];
   readmeExcerpt: string;
 } {
-  const budget = 8000 - maxTokens - 700; // reserve ~700 for system + prompt scaffolding
+  // Reserve room for the detailed system prompt, the dossier metadata, and
+  // the user instruction as well as the repository context. Without this
+  // headroom, Minimal + Technical can exceed the provider budget even though
+  // its requested output is short.
+  const budget = Math.max(900, 8000 - maxTokens - 3000);
   let used = 0;
 
   let material = sourceSnippets.map((s) => ({ ...s }));
@@ -1744,6 +1758,12 @@ export async function runReadmeGeneration(rawInput: unknown): Promise<ReadmeResu
     hasTests = scan.hasTests;
     hasCi = scan.hasCi;
 
+    if (allFilePaths.length === 0 && fetchedFiles.size === 0) {
+      throw new Error(
+        "Could not access repository files. Public repos work without extra setup; private repos require a configured GitHub access token.",
+      );
+    }
+
     // Parse manifests for identity (pubspec takes priority over package.json for Flutter)
     const pubspecContent = fetchedFiles.get("pubspec.yaml");
     let pubspecName = "";
@@ -1869,9 +1889,23 @@ export async function runReadmeGeneration(rawInput: unknown): Promise<ReadmeResu
     ),
   ).length;
 
-  const apiRoutes = allFilePaths.filter((p) =>
-    /\/(routes|api|controllers|endpoints|handlers|cmd)\/.*\.(ts|js|py|go|rs|c|cpp)$/i.test(p),
-  ).length;
+  const apiRoutePaths = new Set(
+    allFilePaths.filter((p) =>
+      /(?:^|\/)(?:routes?|routers?|api|controllers?|endpoints?|handlers?|cmd)(?:\/|[-_.]).*\.(?:ts|tsx|js|jsx|mjs|py|go|rs|c|cpp|java|kt|rb|php)$/i.test(
+        p,
+      ),
+    ),
+  );
+  for (const [path, content] of fetchedFiles) {
+    if (
+      /(?:app|router|server)\.(?:get|post|put|patch|delete|use|route)|createRouter|Router\(|@(?:Get|Post|Put|Patch|Delete)Mapping|FastAPI\(|APIRouter\(/i.test(
+        content,
+      )
+    ) {
+      apiRoutePaths.add(path);
+    }
+  }
+  const apiRoutes = apiRoutePaths.size;
 
   const databaseModels = allFilePaths.filter((p) =>
     /\/(models|schema|entities|db|types)\/.*$/i.test(p),
@@ -1891,16 +1925,19 @@ export async function runReadmeGeneration(rawInput: unknown): Promise<ReadmeResu
   const styleProfiles = {
     minimal: {
       targetWords: "300-500 words",
+      maxTokens: 1200,
       guidance:
         "Crisp, punchy, quickstart-focused. Short paragraphs, zero filler, essential install commands, and a single minimal code example.",
     },
     standard: {
       targetWords: "750-1100 words",
+      maxTokens: 2800,
       guidance:
         "Balanced, production-grade open-source README. Clear architecture summary, well-structured features, prerequisites, realistic step-by-step setup, realistic usage examples, and development commands.",
     },
     comprehensive: {
       targetWords: "1200-2000 words",
+      maxTokens: 3800,
       guidance:
         "Deep-dive technical documentation. Comprehensive architectural breakdown (data flow, components), full API reference with parameter details, environment configuration tables, testing & security guides, and production deployment instructions.",
     },
@@ -1923,13 +1960,15 @@ export async function runReadmeGeneration(rawInput: unknown): Promise<ReadmeResu
   // Format section prompt instructions
   const sectionPromptList = selectedSections
     .filter((s) => s !== "Badges")
-    .map(
-      (s) => `- ## ${s}: ${SECTION_INSTRUCTIONS[s] || "Thorough, project-specific documentation."}`,
+    .map((s) =>
+      data.style === "minimal"
+        ? `- ## ${s}: Keep this section concise and project-specific.`
+        : `- ## ${s}: ${SECTION_INSTRUCTIONS[s] || "Thorough, project-specific documentation."}`,
     )
     .join("\n");
 
   // Token budget tuned by style
-  const maxTokens = data.style === "comprehensive" ? 4200 : data.style === "standard" ? 3200 : 1800;
+  const maxTokens = styleProfiles[data.style].maxTokens;
 
   // Clamp deep-fetch context to fit the provider token-per-minute budget.
   const clamped = clampContextToBudget(
@@ -2019,6 +2058,12 @@ ${sectionPromptList}
           .join("\n")}`
       : "",
     facts.env_vars.length > 0 ? `Environment Variables: ${facts.env_vars.join(", ")}` : "",
+    repo
+      ? `Repository Scan: ${allFilePaths.length} files discovered; ${fetchedFiles.size} files fetched for analysis.`
+      : "",
+    repo && apiRoutes > 0
+      ? `Detected API / route files: ${[...apiRoutePaths].slice(0, 40).join(", ")}`
+      : "",
     ``,
     clamped.readmeExcerpt ? `# EXISTING README SUMMARY / PURPOSE\n${clamped.readmeExcerpt}\n` : "",
     clamped.sourceSnippets.length > 0

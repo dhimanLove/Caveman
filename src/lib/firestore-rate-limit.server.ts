@@ -52,19 +52,48 @@ interface RateDoc {
 
 // undefined = init not attempted yet, null = unavailable (use memory fallback)
 let dbPromise: Promise<import("firebase-admin/firestore").Firestore | null> | undefined;
+let warnedMemoryFallback = false;
+let warnedTransactionFallback = false;
+
+function hasDurableFirebaseConfig(): boolean {
+  return Boolean(
+    process.env.FIREBASE_SERVICE_ACCOUNT_JSON ||
+    process.env.GOOGLE_APPLICATION_CREDENTIALS ||
+    process.env.GOOGLE_CLOUD_PROJECT ||
+    process.env.FIREBASE_CONFIG ||
+    process.env.K_SERVICE ||
+    process.env.FUNCTIONS_WORKER_RUNTIME ||
+    process.env.GAE_ENV,
+  );
+}
+
+function warnMemoryFallback(message: string): void {
+  if (warnedMemoryFallback) return;
+  warnedMemoryFallback = true;
+  console.warn(`[rate-limit] ${message}`);
+}
 
 async function getDb(): Promise<import("firebase-admin/firestore").Firestore | null> {
   if (!dbPromise) {
     dbPromise = (async () => {
+      if (!hasDurableFirebaseConfig()) {
+        warnMemoryFallback(
+          "Durable Firestore credentials are not configured; using in-memory quota for this instance.",
+        );
+        return null;
+      }
       try {
         const adminApp = await getAdminApp();
         const fsMod: any = await import("firebase-admin/firestore");
         const fs = fsMod.default ?? fsMod;
         return fs.getFirestore(adminApp) as import("firebase-admin/firestore").Firestore;
       } catch (err) {
-        console.warn(
-          "[rate-limit] Firestore unavailable, falling back to in-memory quota. " +
+        warnMemoryFallback(
+          "Firestore is unavailable; using in-memory quota for this instance. " +
             "Set FIREBASE_SERVICE_ACCOUNT_JSON for durable cross-instance limits.",
+        );
+        console.warn(
+          "[rate-limit] Durable store details:",
           err instanceof Error ? err.message : err,
         );
         return null;
@@ -130,10 +159,13 @@ export async function consumeQuota(uid: string): Promise<QuotaResult> {
     if (!result.allowed) logDenial(uid, true);
     return result;
   } catch (err) {
-    console.error(
-      "[rate-limit] Transaction failed, using memory fallback:",
-      err instanceof Error ? err.message : err,
-    );
+    if (!warnedTransactionFallback) {
+      warnedTransactionFallback = true;
+      console.warn(
+        "[rate-limit] Firestore transaction failed; using in-memory quota for this instance:",
+        err instanceof Error ? err.message : err,
+      );
+    }
     const res = memoryCheck(uid);
     if (!res.allowed) logDenial(uid, false);
     return { ...res, resetAt: res.cooldownEnd || 0 };
@@ -298,10 +330,13 @@ export async function consumeGlobalCap(): Promise<GlobalCapResult> {
     }
     return result;
   } catch (err) {
-    console.error(
-      "[rate-limit] Global cap transaction failed, using memory fallback:",
-      err instanceof Error ? err.message : err,
-    );
+    if (!warnedTransactionFallback) {
+      warnedTransactionFallback = true;
+      console.warn(
+        "[rate-limit] Global cap transaction failed; using in-memory cap for this instance:",
+        err instanceof Error ? err.message : err,
+      );
+    }
     const count = (globalMemory.get(day) ?? 0) + 1;
     globalMemory.set(day, count);
     return globalMemoryResult(count <= cap, day, count, now, cap);

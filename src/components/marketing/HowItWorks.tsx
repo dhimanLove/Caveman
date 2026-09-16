@@ -1,6 +1,7 @@
 import { useRef, useEffect } from "react";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
+import { KoboyoIllustration } from "@/components/illustrations/KoboyoIllustration";
 gsap.registerPlugin(ScrollTrigger);
 
 // Icon 1: Person Cloud Upload
@@ -54,21 +55,28 @@ const PersonFaceScanIcon = ({ size = 40 }) => (
 const steps = [
   {
     icon: <PersonCloudUploadIcon size={40} />,
-    title: "Upload your data",
-    desc: "Upload files or connect cloud storage directly.",
-    detail: "Supports fast batch uploads and secure cloud authentication.",
+    art: "partyFace" as const,
+    artAlt: "hand-drawn cheerful character face illustration",
+    title: "Sign in & start",
+    desc: "Continue with Google to open the README generator.",
+    detail: "Your account tracks the early-access generation limit. No credit card is needed.",
   },
   {
     icon: <GroupLinkIcon size={40} />,
-    title: "Drop your repo",
+    art: "personIntegration" as const,
+    artAlt: "hand-drawn person demonstrating an integration",
+    title: "Connect your project",
     desc: "Paste a GitHub URL or type a quick description. Zero setup.",
-    detail: "Works with any public repo. Private repos? Sign in with Google - we handle the auth.",
+    detail:
+      "Public repositories work by default. Private scans require a configured GitHub access token.",
   },
   {
     icon: <PersonFaceScanIcon size={40} />,
-    title: "Verify identity",
-    desc: "Complete face scanning for account access.",
-    detail: "Fast visual verification ensures quick and safe authorization.",
+    art: "werewolf" as const,
+    artAlt: "hand-drawn werewolf character illustration",
+    title: "Generate & refine",
+    desc: "Caveman scans the project and writes a grounded README.",
+    detail: "Preview, edit, copy, or download the generated Markdown before you ship it.",
   },
 ];
 
@@ -119,7 +127,7 @@ export function HowItWorks() {
             >
               <div className="flex items-center justify-between mb-8">
                 <div className="text-ink transition-colors duration-300 group-hover:text-electric-iris">
-                  {step.icon}
+                  <KoboyoIllustration icon={step.art} alt={step.artAlt} fallback={step.icon} />
                 </div>
                 <span className="editorial-display text-5xl text-bone leading-none transition-colors duration-300 group-hover:text-electric-iris/40">
                   0{i + 1}

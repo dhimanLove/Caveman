@@ -37,8 +37,15 @@ function sleep(ms: number): Promise<void> {
 function parseRetryAfter(value: string | null): number | undefined {
   if (!value) return undefined;
   const seconds = Number(value);
-  if (Number.isFinite(seconds) && seconds >= 0) return Math.min(seconds * 1000, 10000);
+  if (Number.isFinite(seconds) && seconds >= 0) return Math.min(seconds * 1000, 60000);
   return undefined;
+}
+
+function parseRetryAfterMessage(message: string): number | undefined {
+  const match = message.match(/try again in\s+([\d.]+)s/i);
+  if (!match) return undefined;
+  const seconds = Number(match[1]);
+  return Number.isFinite(seconds) && seconds >= 0 ? Math.min(seconds * 1000, 60000) : undefined;
 }
 
 export async function groqChatComplete(options: GroqChatOptions): Promise<GroqChatResult> {
@@ -131,8 +138,10 @@ export async function groqChatComplete(options: GroqChatOptions): Promise<GroqCh
     // Handle rate limits (429) & transient server errors (500, 502, 503)
     const isRetryable =
       res.status === 429 || res.status === 500 || res.status === 502 || res.status === 503;
-    if (isRetryable && attempt <= maxRetries) {
-      const retryAfter = parseRetryAfter(res.headers.get("retry-after"));
+    const retryLimit = res.status === 429 ? Math.min(maxRetries, 1) : maxRetries;
+    if (isRetryable && attempt <= retryLimit) {
+      const retryAfter =
+        parseRetryAfter(res.headers.get("retry-after")) ?? parseRetryAfterMessage(errorMessage);
       const backoffMs = retryAfter ?? Math.min(800 * Math.pow(2, attempt - 1), 5000);
       console.warn(
         `[ai-client] Retryable error (${res.status}: ${errorMessage}). Retrying in ${backoffMs}ms...`,
