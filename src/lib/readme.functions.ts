@@ -1776,6 +1776,18 @@ function isRequestTooLarge(message: string): boolean {
   );
 }
 
+function isProviderRateLimit(message: string): boolean {
+  const lower = message.toLowerCase();
+  return (
+    lower.includes("rate limit") ||
+    lower.includes("rate_limit") ||
+    lower.includes("tokens per minute") ||
+    lower.includes("tokens_per_minute") ||
+    lower.includes("tpm") ||
+    lower.includes("quota")
+  );
+}
+
 /**
  * Technology names the generator must NEVER introduce on its own. Only names in
  * this list are policed, and only when they appear in assertive prose (negated
@@ -2211,19 +2223,19 @@ export async function runReadmeGeneration(rawInput: unknown): Promise<ReadmeResu
   const styleProfiles = {
     minimal: {
       targetWords: "250-400 words",
-      maxTokens: aiProvider.isGroq ? 2000 : 2400,
+      maxTokens: aiProvider.isGroq ? 1600 : 2400,
       guidance:
         "Crisp, punchy, quickstart-focused. Short paragraphs, zero filler, essential install commands, and a single minimal code example.",
     },
     standard: {
       targetWords: "550-800 words",
-      maxTokens: aiProvider.isGroq ? 3000 : 3800,
+      maxTokens: aiProvider.isGroq ? 2300 : 3800,
       guidance:
         "Balanced, production-grade open-source README. Clear architecture summary, well-structured features, prerequisites, realistic step-by-step setup, realistic usage examples, and development commands.",
     },
     comprehensive: {
       targetWords: "850-1200 words",
-      maxTokens: aiProvider.isGroq ? 3800 : 5200,
+      maxTokens: aiProvider.isGroq ? 2800 : 5200,
       guidance:
         "Enterprise-grade technical documentation. Cover the complete architecture, components, data flow, APIs, configuration, environment variables, testing, security, observability, and production deployment with verified repository evidence.",
     },
@@ -2490,6 +2502,10 @@ Write the complete README.md now with every requested section. Use only the veri
           const msg = err instanceof Error ? err.message : String(err);
           console.warn(`[generateReadme] Model ${model} failed: ${msg}`);
           lastError = err instanceof Error ? err : new Error(msg);
+          // Do not immediately spend the same Groq TPM budget on fallback and
+          // repair calls. Returning a clean retryable error is safer than
+          // shipping a truncated or malformed README.
+          if (isProviderRateLimit(msg)) return { text: "", error: lastError };
           // A provider can reject a request even when the local estimate fits.
           // Break this model pass and retry once with the compact dossier.
           if (isRequestTooLarge(msg)) break;
