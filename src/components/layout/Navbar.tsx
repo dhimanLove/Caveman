@@ -97,14 +97,14 @@ export function Navbar() {
 
   return (
     <header className="site-navbar sticky top-0 z-50 bg-cream/80 backdrop-blur-xl border-b border-bone/60">
-      <div className="mx-auto flex h-16 min-w-0 max-w-[1200px] items-center justify-between gap-3 px-4 sm:h-20 sm:px-6 lg:px-8">
+      <div className="relative mx-auto flex h-16 min-w-0 max-w-[1200px] items-center justify-between gap-3 px-4 sm:h-20 sm:px-6 lg:px-8">
         {/* Left: Logo */}
         <div className="flex min-w-0 shrink-0 items-center gap-10">
           <Logo href="/" />
         </div>
 
         {/* Center: GitHub-style pill nav (Tailwind port of former styled-components CSS) */}
-        <nav className="navbar-pill hidden md:flex w-fit items-center justify-center gap-1 rounded-[14px] border p-1.5">
+        <nav className="navbar-pill absolute left-1/2 hidden w-fit -translate-x-1/2 items-center justify-center gap-1 rounded-[14px] border p-1.5 md:flex">
           {NAV_LINKS.map((l) => (
             <Link
               key={l.label}

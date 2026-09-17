@@ -23,6 +23,11 @@ const ERROR_MESSAGES: Record<string, string> = {
   "auth/network-request-failed": "Network error. Check your connection and try again.",
 };
 
+type FirebaseAuthError = {
+  code?: unknown;
+  message?: unknown;
+};
+
 export function useAuth() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
@@ -41,8 +46,9 @@ export function useAuth() {
 
     try {
       await signInWithPopup(auth, googleProvider);
-    } catch (err: any) {
-      const code = err?.code as string;
+    } catch (err: unknown) {
+      const authError = (typeof err === "object" && err !== null ? err : {}) as FirebaseAuthError;
+      const code = typeof authError.code === "string" ? authError.code : "";
       const message = ERROR_MESSAGES[code];
 
       if (message === "") return;
@@ -52,7 +58,8 @@ export function useAuth() {
       }
 
       console.error("Sign-in error:", err);
-      setError(`Sign-in failed: ${code || err?.message || "Unknown error"}. Please try again.`);
+      const detail = typeof authError.message === "string" ? authError.message : "Unknown error";
+      setError(`Sign-in failed: ${code || detail}. Please try again.`);
     }
   }, []);
 

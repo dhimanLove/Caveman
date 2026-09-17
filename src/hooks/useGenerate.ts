@@ -2,6 +2,7 @@ import { useState, useCallback, useEffect } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { auth, getAppCheckFrontendToken } from "@/lib/firebase";
 import { generateSecure } from "@/lib/generate.functions";
+import type { ReadmeDiscovery } from "@/lib/readme.functions";
 
 const STORAGE_KEY_PREFIX = "caveman_usage_v2";
 const LOCAL_DAILY_LIMIT = 10;
@@ -68,7 +69,7 @@ interface GenerateInput {
 
 interface GenerateResult {
   readme: string;
-  discovery?: any;
+  discovery?: ReadmeDiscovery;
   remaining: number;
   cooldownEnd: number;
 }
@@ -79,6 +80,34 @@ interface GenerateState {
   cooldownExpiry: number;
   isPending: boolean;
   localRemaining: number;
+}
+
+type GenerateServerInput = {
+  data: {
+    _token: string;
+    _appCheckToken: string;
+    projectUrl: string;
+    description: string;
+    style: "minimal" | "standard" | "comprehensive";
+    sections: string[];
+    tone: "technical" | "friendly" | "enterprise";
+  };
+};
+
+function errorName(error: unknown): string {
+  return typeof error === "object" && error !== null && "name" in error
+    ? String((error as { name?: unknown }).name)
+    : "";
+}
+
+function withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T> {
+  let timer: number | undefined;
+  const timeout = new Promise<never>((_, reject) => {
+    timer = window.setTimeout(() => reject(new Error("Request timed out.")), timeoutMs);
+  });
+  return Promise.race([promise, timeout]).finally(() => {
+    if (timer !== undefined) window.clearTimeout(timer);
+  });
 }
 
 function classifyError(err: unknown): { message: string; cooldown: number } {
@@ -129,7 +158,7 @@ function classifyError(err: unknown): { message: string; cooldown: number } {
   if (
     rawMessage.includes("timeout") ||
     rawMessage.includes("timed out") ||
-    (err as any)?.name === "AbortError"
+    errorName(err) === "AbortError"
   ) {
     return { message: "Request timed out. Check your connection and try again.", cooldown: 0 };
   }
@@ -252,24 +281,35 @@ export function useGenerate() {
           return;
         }
 
-        const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), 180000);
-
         const appCheckToken = await getAppCheckFrontendToken();
-
-        const result = await (fn as any)({
-          data: {
-            _token: token,
-            _appCheckToken: appCheckToken,
-            projectUrl: input.projectUrl || "",
-            description: input.description || "",
-            style: input.style || "standard",
-            sections: input.sections || ["Installation", "Usage", "License"],
-            tone: input.tone || "technical",
-          },
-        });
-
-        clearTimeout(timeout);
+        const serverFn = fn as unknown as (args: GenerateServerInput) => Promise<GenerateResult>;
+        const result = await withTimeout(
+          serverFn({
+            data: {
+              _token: token,
+              _appCheckToken: appCheckToken,
+              projectUrl: input.projectUrl || "",
+              description: input.description || "",
+              style: input.style || "comprehensive",
+              sections: input.sections || [
+                "Installation",
+                "Usage",
+                "API Docs",
+                "License",
+                "Tech Stack",
+                "Folder Structure",
+                "Components",
+                "Features",
+                "Architecture",
+                "Security",
+                "Deployment",
+                "Testing",
+              ],
+              tone: input.tone || "technical",
+            },
+          }),
+          180000,
+        );
 
         if (!result || !result.readme) {
           setState({

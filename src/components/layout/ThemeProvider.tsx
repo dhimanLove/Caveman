@@ -42,7 +42,7 @@ function getPreferredTheme(): Theme {
     // Storage may be unavailable in privacy-restricted browser contexts.
   }
 
-  return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+  return "light";
 }
 
 export function ThemeProvider({ children }: { children: ReactNode }) {

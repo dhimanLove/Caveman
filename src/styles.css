@@ -261,7 +261,11 @@ html.theme-transition * {
 
 .generation-illustration-loader {
   background:
-    radial-gradient(circle at 50% 42%, color-mix(in srgb, var(--color-electric-iris) 8%, transparent), transparent 32%),
+    radial-gradient(
+      circle at 50% 42%,
+      color-mix(in srgb, var(--color-electric-iris) 8%, transparent),
+      transparent 32%
+    ),
     var(--color-paper);
 }
 
@@ -501,6 +505,50 @@ html[data-theme="dark"] .koboyo-illustration img {
 }
 .readme-scroll {
   scrollbar-color: var(--color-bone) transparent;
+}
+
+.generate-sidebar-scroll {
+  scrollbar-width: thin;
+  -ms-overflow-style: auto;
+  scrollbar-color: var(--color-bone) transparent;
+}
+.generate-sidebar-scroll::-webkit-scrollbar {
+  display: block;
+  width: 8px;
+}
+.generate-sidebar-scroll::-webkit-scrollbar-thumb {
+  background: var(--color-bone);
+  border-radius: 9999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+.generate-sidebar-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.section-picker-list {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-bone) transparent;
+}
+.section-picker-list::-webkit-scrollbar {
+  display: block;
+  width: 7px;
+}
+.section-picker-list::-webkit-scrollbar-thumb {
+  background: var(--color-bone);
+  border-radius: 9999px;
+}
+.section-picker-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.readme-code-block {
+  background: #111827;
+  color: #f9fafb;
+}
+html[data-theme="dark"] .readme-code-block {
+  background: #0b0d12;
+  color: #f4f4f5;
 }
 
 /* ===== Animations ===== */

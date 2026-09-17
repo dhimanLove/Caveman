@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { checkIpLimit, getClientIp, isSameOrigin } from "./request-guard.server";
+import { fetchWithTimeout, isRecord } from "./http.server";
 
 interface CommitNode {
   sha: string;
@@ -18,6 +19,16 @@ interface GraphData {
   edges: { source: string; target: string }[];
   repoName: string;
   branch: string;
+}
+
+type JsonRecord = Record<string, unknown>;
+
+function asRecord(value: unknown): JsonRecord {
+  return isRecord(value) ? value : {};
+}
+
+function asString(value: unknown, fallback = ""): string {
+  return typeof value === "string" ? value : fallback;
 }
 
 // GitHub owner/repo names only - blocks traversal and odd hosts before any fetch
@@ -57,9 +68,10 @@ export const fetchCommitGraph = createServerFn({ method: "GET" })
     if (token) headers.Authorization = `Bearer ${token}`;
 
     // Fetch commits (up to 100 for performance)
-    const commitRes = await fetch(
+    const commitRes = await fetchWithTimeout(
       `https://api.github.com/repos/${owner}/${repo}/commits?per_page=100`,
       { headers },
+      8_000,
     );
 
     if (!commitRes.ok) {
@@ -72,24 +84,43 @@ export const fetchCommitGraph = createServerFn({ method: "GET" })
       throw new Error("Could not load commit data. Try again later.");
     }
 
-    const commits: any[] = await commitRes.json();
+    const commitsPayload: unknown = await commitRes.json();
+    if (!Array.isArray(commitsPayload)) {
+      throw new Error("GitHub returned an invalid commit response.");
+    }
 
-    const nodes: CommitNode[] = commits.map((c: any) => ({
-      sha: c.sha,
-      message: c.commit.message.split("\n")[0],
-      author: c.commit.author?.name || "Unknown",
-      avatar: c.author?.avatar_url || "",
-      date: c.commit.author?.date || "",
-      parents: c.parents?.map((p: any) => p.sha) || [],
-    }));
+    const nodes: CommitNode[] = commitsPayload
+      .map((raw): CommitNode | null => {
+        const commit = asRecord(raw);
+        const details = asRecord(commit.commit);
+        const author = asRecord(details.author);
+        const sha = asString(commit.sha);
+        if (!sha) return null;
+        const message = asString(details.message, "(no commit message)").split("\n")[0];
+        const parents = Array.isArray(commit.parents)
+          ? commit.parents
+              .map((parent) => asString(asRecord(parent).sha))
+              .filter((parentSha): parentSha is string => parentSha.length > 0)
+          : [];
+        return {
+          sha,
+          message,
+          author: asString(author.name, "Unknown"),
+          avatar: asString(asRecord(commit.author).avatar_url),
+          date: asString(author.date),
+          parents,
+        };
+      })
+      .filter((node): node is CommitNode => node !== null);
 
     // Build edges from parent relationships
     const edgeSet = new Set<string>();
+    const nodeShas = new Set(nodes.map((node) => node.sha));
     const edges: { source: string; target: string }[] = [];
     for (const node of nodes) {
       for (const parentSha of node.parents) {
         // Only include edges where both nodes are in our set
-        if (nodes.some((n) => n.sha === parentSha)) {
+        if (nodeShas.has(parentSha)) {
           const key = `${node.sha}-${parentSha}`;
           if (!edgeSet.has(key)) {
             edgeSet.add(key);
@@ -100,9 +131,13 @@ export const fetchCommitGraph = createServerFn({ method: "GET" })
     }
 
     // Get repo info and default branch
-    const repoRes = await fetch(`https://api.github.com/repos/${owner}/${repo}`, { headers });
-    const repoData = repoRes.ok ? await repoRes.json() : {};
-    const branch = repoData.default_branch || "main";
+    const repoRes = await fetchWithTimeout(
+      `https://api.github.com/repos/${owner}/${repo}`,
+      { headers },
+      8_000,
+    );
+    const repoPayload: unknown = repoRes.ok ? await repoRes.json() : {};
+    const branch = asString(asRecord(repoPayload).default_branch, "main");
 
     return {
       nodes,

@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState, useRef, useEffect } from "react";
+import type { User } from "firebase/auth";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   IconLink as LinkIcon,
@@ -28,7 +29,6 @@ import { AutoDetectionPanel } from "@/components/auto-detect/AutoDetectionPanel"
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { CavemanMark } from "@/components/layout/Logo";
@@ -95,21 +95,25 @@ const ALL_SECTIONS = [
   "Installation",
   "Usage",
   "API Docs",
-  "Contributing",
   "License",
-  "Badges",
   "Tech Stack",
   "Folder Structure",
+  "Components",
   "Features",
   "Architecture",
-  "Performance",
   "Security",
   "Deployment",
   "Testing",
-  "FAQ",
-  "Changelog",
-  "Authors",
 ];
+
+// Deferred until the higher-budget AI agent is enabled:
+// Configuration, Environment Variables, Data Model, Observability,
+// Contributing, Performance, FAQ, Changelog, Authors, Badges.
+
+// Start with the complete documentation set. Users can still deselect sections
+// in the picker, but a fresh generation should not silently omit architecture,
+// API, deployment, or maintenance documentation.
+const DEFAULT_SECTIONS = [...ALL_SECTIONS];
 
 const STYLE_META: Record<Style, { desc: string }> = {
   minimal: { desc: "Quick start, bare essentials" },
@@ -163,13 +167,15 @@ function SectionPicker({
       <button
         type="button"
         onClick={() => setOpen(!open)}
+        aria-expanded={open}
+        aria-haspopup="listbox"
         className="btn-ghost w-full justify-between text-xs !rounded-full !py-2"
       >
         <span className="truncate">
           {selected.length === 0
             ? "Select sections"
             : selected.length === ALL_SECTIONS.length
-              ? "All sections"
+              ? `All ${ALL_SECTIONS.length} sections`
               : `${selected.length} section${selected.length > 1 ? "s" : ""} selected`}
         </span>
         {open ? <CaretUp size={10} className="rotate-180" /> : <CaretDown size={10} />}
@@ -178,7 +184,9 @@ function SectionPicker({
         <motion.div
           initial={{ opacity: 0, y: -4 }}
           animate={{ opacity: 1, y: 0 }}
-          className="absolute top-full mt-1 left-0 right-0 z-10 bg-paper border border-bone rounded-[4px] overflow-hidden"
+          role="listbox"
+          aria-label="README sections"
+          className="mt-2 w-full bg-paper border border-bone rounded-lg overflow-hidden shadow-subtle"
         >
           <div className="relative border-b border-bone">
             <SearchIcon
@@ -193,7 +201,7 @@ function SectionPicker({
               className="h-9 pl-8 text-xs bg-paper text-ink placeholder:text-ink/40 border-0 shadow-none rounded-none"
             />
           </div>
-          <div className="max-h-[200px] overflow-y-auto p-1">
+          <div className="section-picker-list max-h-[min(50vh,360px)] overflow-y-auto overscroll-contain p-1">
             {filtered.map((s) => {
               const active = selected.includes(s);
               return (
@@ -201,6 +209,8 @@ function SectionPicker({
                   key={s}
                   type="button"
                   onClick={() => toggle(s)}
+                  role="option"
+                  aria-selected={active}
                   className="w-full flex items-center gap-2 px-3 py-1.5 text-xs rounded-[4px] hover:bg-cream transition-colors text-left"
                 >
                   <div
@@ -229,7 +239,7 @@ function SectionPicker({
               {selected.length === ALL_SECTIONS.length ? "Deselect all" : "Select all"}
             </button>
             <span className="generate-helper-text text-[10px]">
-              {selected.length}/{ALL_SECTIONS.length}
+              {selected.length}/{ALL_SECTIONS.length} selected
             </span>
           </div>
         </motion.div>
@@ -269,14 +279,14 @@ function GeneratePage() {
 
 const viewIcons = { preview: Eye, raw: CodeIcon, edit: PencilSimple } as const;
 
-function AuthenticatedApp({ user, onSignOut }: { user: any; onSignOut: () => void }) {
+function AuthenticatedApp({ user, onSignOut }: { user: User; onSignOut: () => void }) {
   const search = Route.useSearch();
   const [tab, setTab] = useState<Tab>("url");
   const [url, setUrl] = useState(search.url ?? "");
   const [description, setDescription] = useState("");
   const [style, setStyle] = useState<Style>("comprehensive");
   const [tone, setTone] = useState<Tone>("technical");
-  const [sections, setSections] = useState<string[]>(ALL_SECTIONS);
+  const [sections, setSections] = useState<string[]>(DEFAULT_SECTIONS);
   const [view, setView] = useState<"preview" | "raw" | "edit">("preview");
   const [copied, setCopied] = useState(false);
   const [editableReadme, setEditableReadme] = useState("");
@@ -373,7 +383,11 @@ function AuthenticatedApp({ user, onSignOut }: { user: any; onSignOut: () => voi
   }, [readme, editableReadme]);
 
   const sidebarContent = (
-    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex-1 flex flex-col">
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      className="flex min-h-full flex-none flex-col"
+    >
       <div className="p-4 space-y-4 border-b border-bone">
         {/* Source */}
         <div className="space-y-2">
@@ -522,7 +536,7 @@ function AuthenticatedApp({ user, onSignOut }: { user: any; onSignOut: () => voi
   );
 
   return (
-    <div className="h-screen bg-paper flex flex-col">
+    <div className="flex h-[100dvh] min-h-0 flex-col overflow-hidden bg-paper">
       {/* Header */}
       <header className="h-11 border-b border-bone bg-paper flex items-center justify-between px-4 shrink-0">
         <div className="flex items-center gap-2.5 group">
@@ -584,12 +598,17 @@ function AuthenticatedApp({ user, onSignOut }: { user: any; onSignOut: () => voi
               Options
             </SheetTitle>
           </SheetHeader>
-          <ScrollArea className="flex-1 min-h-0">{sidebarContent}</ScrollArea>
+          <div
+            className="generate-sidebar-scroll min-h-0 flex-1 overflow-y-auto overscroll-contain"
+            data-lenis-prevent
+          >
+            {sidebarContent}
+          </div>
         </SheetContent>
       </Sheet>
 
       {/* Body */}
-      <div className="flex-1 flex overflow-hidden">
+      <div className="flex min-h-0 flex-1 overflow-hidden">
         <AnimatePresence mode="wait">
           {inCooldown ? (
             <motion.div
@@ -607,10 +626,10 @@ function AuthenticatedApp({ user, onSignOut }: { user: any; onSignOut: () => voi
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="flex-1 flex overflow-hidden"
+              className="flex min-h-0 flex-1 overflow-hidden"
             >
               {/* Sidebar - desktop */}
-              <div className="hidden lg:flex flex-col w-[280px] shrink-0 border-r border-bone bg-paper overflow-y-auto">
+              <div className="generate-sidebar-scroll hidden lg:flex min-h-0 w-[280px] shrink-0 flex-col overflow-y-auto overscroll-contain border-r border-bone bg-paper">
                 {sidebarContent}
               </div>
 
@@ -724,7 +743,7 @@ function AuthenticatedApp({ user, onSignOut }: { user: any; onSignOut: () => voi
 
                     {/* README content */}
                     <div
-                      className="px-5 py-6 flex-1 min-h-0 overflow-y-auto readme-scroll"
+                      className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 py-6 readme-scroll"
                       data-lenis-prevent
                       tabIndex={0}
                     >
@@ -747,8 +766,11 @@ function AuthenticatedApp({ user, onSignOut }: { user: any; onSignOut: () => voi
                                   README.md
                                 </span>
                               </div>
-                              <div className="p-6 lg:p-8">
-                                <MarkdownRender text={editableReadme || readme} />
+                              <div className="mx-auto max-w-[1012px] p-6 lg:p-8">
+                                <MarkdownRender
+                                  text={editableReadme || readme}
+                                  sourceUrl={tab === "url" ? url : undefined}
+                                />
                               </div>
                             </div>
                           ) : view === "raw" ? (
@@ -791,7 +813,7 @@ function AuthenticatedApp({ user, onSignOut }: { user: any; onSignOut: () => voi
   );
 }
 
-function MarkdownRender({ text }: { text: string }) {
+function MarkdownRender({ text, sourceUrl }: { text: string; sourceUrl?: string }) {
   const lines = text.split("\n");
   const out: React.ReactNode[] = [];
   let i = 0,
@@ -799,6 +821,40 @@ function MarkdownRender({ text }: { text: string }) {
 
   while (i < lines.length) {
     const line = lines[i];
+
+    if (/^\s*<!--/.test(line)) {
+      while (i < lines.length && !lines[i].includes("-->")) i++;
+      if (i < lines.length) i++;
+      continue;
+    }
+
+    // GitHub-style HTML blocks commonly used for README branding and hero
+    // sections. Render the safe, presentational subset instead of displaying
+    // the tags as literal text.
+    if (/^\s*<div\b/i.test(line)) {
+      const openingEnd = line.indexOf(">");
+      const openingTag = openingEnd >= 0 ? line.slice(0, openingEnd + 1) : "";
+      const openingAttrs = htmlAttributes(openingTag);
+      const innerLines = [openingEnd >= 0 ? line.slice(openingEnd + 1) : line];
+      i++;
+      while (i < lines.length && !/^\s*<\/div>\s*$/i.test(lines[i])) {
+        innerLines.push(lines[i++]);
+      }
+      if (i < lines.length) i++;
+
+      const isCentered =
+        openingAttrs.align?.toLowerCase() === "center" ||
+        /(?:^|\s)text-center(?:\s|$)/i.test(openingAttrs.class || "");
+      out.push(
+        <div key={key++} className={isCentered ? "my-5 text-center" : "my-5"}>
+          <MarkdownRender
+            text={innerLines.join("\n").replace(/<\/div>\s*$/i, "")}
+            sourceUrl={sourceUrl}
+          />
+        </div>,
+      );
+      continue;
+    }
 
     if (line.startsWith("```")) {
       const lang = line.slice(3).trim();
@@ -822,7 +878,7 @@ function MarkdownRender({ text }: { text: string }) {
             </div>
           )}
           <pre
-            className={`p-4 font-mono text-sm overflow-x-auto leading-relaxed ${isTree ? "bg-paper text-ink" : "bg-ink text-white"}`}
+            className={`p-4 font-mono text-sm overflow-x-auto leading-relaxed ${isTree ? "bg-paper text-ink" : "readme-code-block"}`}
           >
             <code>{buf.join("\n")}</code>
           </pre>
@@ -854,7 +910,7 @@ function MarkdownRender({ text }: { text: string }) {
               <tr className="border-b border-bone">
                 {headers.map((h, idx) => (
                   <th key={idx} className="p-3 font-medium text-ink text-sm">
-                    {inline(h)}
+                    {inline(h, sourceUrl)}
                   </th>
                 ))}
               </tr>
@@ -864,7 +920,7 @@ function MarkdownRender({ text }: { text: string }) {
                 <tr key={rIdx} className="hover:bg-cream">
                   {row.map((cell, cIdx) => (
                     <td key={cIdx} className="p-3 text-ink/60 text-sm">
-                      {inline(cell)}
+                      {inline(cell, sourceUrl)}
                     </td>
                   ))}
                 </tr>
@@ -876,13 +932,19 @@ function MarkdownRender({ text }: { text: string }) {
       continue;
     }
 
+    if (/^\s*([-*_])(?:\s*\1){2,}\s*$/.test(line)) {
+      out.push(<hr key={key++} className="my-6 border-0 border-t border-bone" />);
+      i++;
+      continue;
+    }
+
     if (line.startsWith("> ")) {
       out.push(
         <blockquote
           key={key++}
           className="my-4 pl-4 border-l-2 border-ink p-3 text-sm italic text-ink/60"
         >
-          {inline(line.slice(2))}
+          {inline(line.slice(2), sourceUrl)}
         </blockquote>,
       );
       i++;
@@ -897,7 +959,7 @@ function MarkdownRender({ text }: { text: string }) {
           id={headingId(h1Text)}
           className="mt-8 mb-4 text-3xl font-medium text-ink border-b border-bone pb-3"
         >
-          {inline(h1Text)}
+          {inline(h1Text, sourceUrl)}
         </h1>,
       );
       i++;
@@ -907,7 +969,7 @@ function MarkdownRender({ text }: { text: string }) {
       const h2Text = line.slice(3);
       out.push(
         <h2 key={key++} id={headingId(h2Text)} className="mt-7 mb-3 text-xl font-medium text-ink">
-          {inline(h2Text)}
+          {inline(h2Text, sourceUrl)}
         </h2>,
       );
       i++;
@@ -917,25 +979,48 @@ function MarkdownRender({ text }: { text: string }) {
       const h3Text = line.slice(4);
       out.push(
         <h3 key={key++} id={headingId(h3Text)} className="mt-6 mb-2 text-lg font-medium text-ink">
-          {inline(h3Text)}
+          {inline(h3Text, sourceUrl)}
         </h3>,
       );
       i++;
       continue;
     }
 
-    if (line.startsWith("- ") || line.startsWith("* ")) {
+    if (/^(?:- |\* |\+ )/.test(line)) {
       const items: string[] = [];
-      while (i < lines.length && (lines[i].startsWith("- ") || lines[i].startsWith("* ")))
-        items.push(lines[i++].slice(2));
+      while (i < lines.length && /^(?:- |\* |\+ )/.test(lines[i])) {
+        items.push(lines[i++].replace(/^(?:- |\* |\+ )/, ""));
+      }
       out.push(
         <ul key={key++} className="my-3 ml-5 list-disc space-y-1.5 text-sm text-ink/60">
           {items.map((it, idx) => (
             <li key={idx} className="leading-relaxed">
-              {inline(it)}
+              {inline(
+                it.replace(/^\[([ xX])\]\s*/, (_, state: string) =>
+                  state.toLowerCase() === "x" ? "☑ " : "☐ ",
+                ),
+                sourceUrl,
+              )}
             </li>
           ))}
         </ul>,
+      );
+      continue;
+    }
+
+    if (/^\d+[.)]\s+/.test(line)) {
+      const items: string[] = [];
+      while (i < lines.length && /^\d+[.)]\s+/.test(lines[i])) {
+        items.push(lines[i++].replace(/^\d+[.)]\s+/, ""));
+      }
+      out.push(
+        <ol key={key++} className="my-3 ml-5 list-decimal space-y-1.5 text-sm text-ink/60">
+          {items.map((it, idx) => (
+            <li key={idx} className="leading-relaxed">
+              {inline(it, sourceUrl)}
+            </li>
+          ))}
+        </ol>,
       );
       continue;
     }
@@ -944,12 +1029,26 @@ function MarkdownRender({ text }: { text: string }) {
       i++;
       continue;
     }
+    const paragraph = [line.trim()];
+    i++;
+    while (
+      i < lines.length &&
+      lines[i].trim() &&
+      !/^```/.test(lines[i]) &&
+      !/^#{1,6}\s/.test(lines[i]) &&
+      !/^>\s/.test(lines[i]) &&
+      !/^(?:- |\* |\+ |\d+[.)]\s+)/.test(lines[i]) &&
+      !lines[i].startsWith("|") &&
+      !/^\s*([-*_])(?:\s*\1){2,}\s*$/.test(lines[i])
+    ) {
+      paragraph.push(lines[i].trim());
+      i++;
+    }
     out.push(
       <p key={key++} className="my-3 text-sm text-ink/60 leading-relaxed">
-        {inline(line)}
+        {inline(paragraph.join(" "), sourceUrl)}
       </p>,
     );
-    i++;
   }
   return <div className="max-w-none">{out}</div>;
 }
@@ -973,9 +1072,33 @@ function findClosing(text: string, start: number, open: string, close: string) {
 function safeUrl(value: string, kind: "link" | "image") {
   const url = value.trim().replace(/^<|>$/g, "");
   if (!url || /^(?:javascript|vbscript|data):/i.test(url)) return null;
-  if (kind === "image" && !/^https?:\/\//i.test(url)) return null;
+  if (kind === "image" && !/^(?:https?:\/\/|\/(?!\/)|\.{1,2}\/)/i.test(url)) return null;
   if (kind === "link" && !/^(?:https?:\/\/|mailto:|#|\/|\.\.?(?:\/|$))/i.test(url)) return null;
   return url;
+}
+
+function resolvePreviewImageUrl(value: string, sourceUrl?: string) {
+  const url = safeUrl(value, "image");
+  if (!url || /^https?:\/\//i.test(url) || !sourceUrl) return url;
+  const repo = sourceUrl.match(/github\.com\/([^/]+)\/([^/#?]+)/i);
+  if (!repo) return url;
+  const path = url.replace(/^\.\//, "").replace(/^\//, "");
+  return `https://github.com/${repo[1]}/${repo[2].replace(/\.git$/i, "")}/raw/HEAD/${path}`;
+}
+
+function htmlAttributes(tag: string): Record<string, string> {
+  const attrs: Record<string, string> = {};
+  const attrPattern = /([\w:-]+)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))/g;
+  let match: RegExpExecArray | null;
+  while ((match = attrPattern.exec(tag))) {
+    attrs[match[1].toLowerCase()] = match[2] ?? match[3] ?? match[4] ?? "";
+  }
+  return attrs;
+}
+
+function imageClassName(src: string) {
+  const isBadge = /img\.shields\.io|badge|shields/i.test(src);
+  return `inline-block ${isBadge ? "max-h-6" : "max-h-80"} max-w-full h-auto align-middle object-contain`;
 }
 
 function parseDestination(text: string, start: number) {
@@ -993,7 +1116,7 @@ function parseDestination(text: string, start: number) {
  * HTML. React escapes text nodes for us, while links and images are created
  * only after their destinations pass the URL allow-list.
  */
-function inline(text: string): React.ReactNode {
+function inline(text: string, sourceUrl?: string): React.ReactNode {
   const nodes: React.ReactNode[] = [];
   let buffer = "";
   let key = 0;
@@ -1013,11 +1136,123 @@ function inline(text: string): React.ReactNode {
       continue;
     }
 
+    const breakMatch = rest.match(/^<br\s*\/?>/i);
+    if (breakMatch) {
+      flush();
+      nodes.push(<br key={key++} />);
+      i += breakMatch[0].length - 1;
+      continue;
+    }
+
+    // Render the README HTML patterns GitHub supports for badges, logos, and
+    // centered hero content. Attributes are parsed and URLs are allow-listed.
+    if (/^<img\b/i.test(rest)) {
+      const end = rest.indexOf(">");
+      if (end >= 0) {
+        const attrs = htmlAttributes(rest.slice(0, end + 1));
+        const url = attrs.src && resolvePreviewImageUrl(attrs.src, sourceUrl);
+        if (url) {
+          flush();
+          nodes.push(
+            <img
+              key={key++}
+              src={url}
+              alt={attrs.alt || ""}
+              title={attrs.title}
+              loading="lazy"
+              className={imageClassName(url)}
+            />,
+          );
+          i += end;
+          continue;
+        }
+      }
+    }
+
+    if (/^<a\b/i.test(rest)) {
+      const openingEnd = rest.indexOf(">");
+      const closingStart = rest.search(/<\/a>\s*/i);
+      if (openingEnd >= 0 && closingStart > openingEnd) {
+        const linkAttrs = htmlAttributes(rest.slice(0, openingEnd + 1));
+        const inner = rest.slice(openingEnd + 1, closingStart);
+        const imageEnd = inner.search(/\/>|>/);
+        const imageTag =
+          /^\s*<img\b/i.test(inner) && imageEnd >= 0 ? inner.slice(0, imageEnd + 1) : "";
+        const imageAttrs = imageTag ? htmlAttributes(imageTag) : {};
+        const linkUrl = linkAttrs.href && safeUrl(linkAttrs.href, "link");
+        const imageUrl = imageAttrs.src && resolvePreviewImageUrl(imageAttrs.src, sourceUrl);
+        if (linkUrl && imageUrl) {
+          flush();
+          nodes.push(
+            <a
+              key={key++}
+              href={linkUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex align-middle hover:opacity-80 transition-opacity"
+            >
+              <img
+                src={imageUrl}
+                alt={imageAttrs.alt || ""}
+                title={imageAttrs.title}
+                loading="lazy"
+                className={imageClassName(imageUrl)}
+              />
+            </a>,
+          );
+          i += closingStart + 3;
+          continue;
+        }
+      }
+    }
+
+    const inlineHtml = rest.match(/^<(strong|b|em|i|del|s|u|code|sub|sup|mark)>([\s\S]*?)<\/\1>/i);
+    if (inlineHtml) {
+      flush();
+      const tag = inlineHtml[1].toLowerCase();
+      const content = inline(inlineHtml[2], sourceUrl);
+      const nodeKey = key++;
+      if (tag === "strong" || tag === "b") {
+        nodes.push(
+          <strong key={nodeKey} className="font-semibold text-ink">
+            {content}
+          </strong>,
+        );
+      } else if (tag === "em" || tag === "i") {
+        nodes.push(<em key={nodeKey}>{content}</em>);
+      } else if (tag === "code") {
+        nodes.push(
+          <code
+            key={nodeKey}
+            className="bg-cream border border-bone px-1.5 py-0.5 font-mono text-xs rounded-md"
+          >
+            {content}
+          </code>,
+        );
+      } else if (tag === "del" || tag === "s") {
+        nodes.push(<del key={nodeKey}>{content}</del>);
+      } else if (tag === "sub") {
+        nodes.push(<sub key={nodeKey}>{content}</sub>);
+      } else if (tag === "sup") {
+        nodes.push(<sup key={nodeKey}>{content}</sup>);
+      } else if (tag === "mark") {
+        nodes.push(
+          <mark key={nodeKey} className="rounded bg-yellow-200/60 px-1 text-ink">
+            {content}
+          </mark>,
+        );
+      } else {
+        nodes.push(<u key={nodeKey}>{content}</u>);
+      }
+      i += inlineHtml[0].length - 1;
+      continue;
+    }
+
     if (rest.startsWith("![")) {
       const labelEnd = findClosing(text, i + 1, "[", "]");
       if (labelEnd >= 0) {
         const destination = parseDestination(text, labelEnd + 1);
-        const url = destination && safeUrl(destination.url, "image");
+        const url = destination && resolvePreviewImageUrl(destination.url, sourceUrl);
         if (destination && url) {
           const alt = text.slice(i + 2, labelEnd).replace(/\\(.)/g, "$1");
           flush();
@@ -1028,7 +1263,7 @@ function inline(text: string): React.ReactNode {
               alt={alt}
               title={destination.title}
               loading="lazy"
-              className="inline-block max-h-6 max-w-full align-middle object-contain"
+              className={imageClassName(url)}
             />
           );
           nodes.push(
@@ -1064,7 +1299,7 @@ function inline(text: string): React.ReactNode {
               title={destination.title}
               className="text-electric-iris underline decoration-electric-iris/40 underline-offset-2 hover:text-lavender-dark"
             >
-              {inline(text.slice(i + 1, labelEnd))}
+              {inline(text.slice(i + 1, labelEnd), sourceUrl)}
             </a>,
           );
           i = destination.end;
@@ -1119,12 +1354,12 @@ function inline(text: string): React.ReactNode {
           );
         } else {
           const tag = marker === "~~" ? "del" : "strong";
-          const children = inline(content);
+          const children = inline(content, sourceUrl);
           nodes.push(
             tag === "del" ? (
               <del key={key++}>{children}</del>
             ) : (
-              <strong key={key++} className="font-medium text-ink">
+              <strong key={key++} className="font-semibold text-ink">
                 {children}
               </strong>
             ),
@@ -1140,7 +1375,7 @@ function inline(text: string): React.ReactNode {
       const end = text.indexOf(marker, i + 1);
       if (end > i + 1 && text[end - 1] !== " ") {
         flush();
-        nodes.push(<em key={key++}>{inline(text.slice(i + 1, end))}</em>);
+        nodes.push(<em key={key++}>{inline(text.slice(i + 1, end), sourceUrl)}</em>);
         i = end;
         continue;
       }

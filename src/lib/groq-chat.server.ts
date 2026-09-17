@@ -2,6 +2,8 @@
  * High-speed OpenAI-compatible chat completions client for Groq, Google Gemini, and OpenAI.
  */
 
+import { fetchWithTimeout } from "./http.server";
+
 export type ChatMessage = {
   role: "system" | "user" | "assistant";
   content: string;
@@ -48,6 +50,15 @@ function parseRetryAfterMessage(message: string): number | undefined {
   return Number.isFinite(seconds) && seconds >= 0 ? Math.min(seconds * 1000, 60000) : undefined;
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+function asFiniteNumber(value: unknown): number {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
 export async function groqChatComplete(options: GroqChatOptions): Promise<GroqChatResult> {
   const {
     apiKey,
@@ -77,48 +88,56 @@ export async function groqChatComplete(options: GroqChatOptions): Promise<GroqCh
     attempt++;
     let res: Response;
     try {
-      const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), 45000);
-
-      res = await fetch(endpoint, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${apiKey.trim()}`,
+      res = await fetchWithTimeout(
+        endpoint,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${apiKey.trim()}`,
+          },
+          body: JSON.stringify(body),
         },
-        body: JSON.stringify(body),
-        signal: controller.signal,
-      });
-      clearTimeout(timer);
+        45_000,
+      );
     } catch (err: unknown) {
       if (attempt <= maxRetries) {
         const backoffMs = 500 * Math.pow(2, attempt - 1);
+        const message = err instanceof Error ? err.message : String(err);
         console.warn(
-          `[ai-client] network error on attempt ${attempt}: ${(err as Error)?.message}. Retrying in ${backoffMs}ms...`,
+          `[ai-client] network error on attempt ${attempt}: ${message}. Retrying in ${backoffMs}ms...`,
         );
         await sleep(backoffMs);
         continue;
       }
-      throw err;
+      throw err instanceof Error ? err : new Error(String(err));
     }
 
     if (res.ok) {
-      let data: any;
+      let data: unknown;
       try {
         data = await res.json();
       } catch {
         throw new Error("AI provider returned an unreadable response format.");
       }
-      const choice = data?.choices?.[0];
-      const text = choice?.message?.content ?? "";
-      const finishReason: string = choice?.finish_reason ?? "stop";
-      const usage = data?.usage
+      const choices = isRecord(data) && Array.isArray(data.choices) ? data.choices : [];
+      const choice = isRecord(choices[0]) ? choices[0] : undefined;
+      const message = choice && isRecord(choice.message) ? choice.message : undefined;
+      const text = message && typeof message.content === "string" ? message.content : "";
+      const finishReason =
+        choice && typeof choice.finish_reason === "string" ? choice.finish_reason : "stop";
+      const rawUsage = isRecord(data) && isRecord(data.usage) ? data.usage : undefined;
+      const usage = rawUsage
         ? {
-            promptTokens: Number(data.usage.prompt_tokens ?? 0),
-            completionTokens: Number(data.usage.completion_tokens ?? 0),
-            totalTokens: Number(data.usage.total_tokens ?? 0),
+            promptTokens: asFiniteNumber(rawUsage.prompt_tokens),
+            completionTokens: asFiniteNumber(rawUsage.completion_tokens),
+            totalTokens: asFiniteNumber(rawUsage.total_tokens),
           }
         : undefined;
+
+      if (!text.trim()) {
+        throw new Error("AI provider returned an empty response.");
+      }
 
       return { text, finishReason, usage, model };
     }
@@ -126,11 +145,13 @@ export async function groqChatComplete(options: GroqChatOptions): Promise<GroqCh
     // Parse provider error response
     let errorMessage = `AI request failed (HTTP ${res.status})`;
     try {
-      const errData = await res.json();
-      const inner = errData?.error;
+      const errData: unknown = await res.json();
+      const inner = isRecord(errData) ? errData.error : undefined;
       if (typeof inner === "string") errorMessage = inner;
-      else if (inner?.message) errorMessage = inner.message;
-      else if (errData?.message) errorMessage = errData.message;
+      else if (isRecord(inner) && typeof inner.message === "string") errorMessage = inner.message;
+      else if (isRecord(errData) && typeof errData.message === "string") {
+        errorMessage = errData.message;
+      }
     } catch {
       // Keep default status message
     }

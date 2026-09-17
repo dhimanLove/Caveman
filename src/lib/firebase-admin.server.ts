@@ -20,8 +20,10 @@ let appPromise: Promise<App> | undefined;
 
 async function buildApp(): Promise<App> {
   // firebase-admin ships CJS; dynamic import may wrap it under `default`
-  const appMod: any = await import("firebase-admin/app");
-  const admin = appMod.default ?? appMod;
+  const appMod = await import("firebase-admin/app");
+  const admin =
+    (appMod as unknown as { default?: typeof appMod }).default ??
+    (appMod as unknown as typeof appMod);
 
   const credential = process.env.FIREBASE_SERVICE_ACCOUNT_JSON
     ? admin.cert(JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_JSON))
@@ -35,7 +37,7 @@ async function buildApp(): Promise<App> {
           .project_id
       : undefined);
 
-  const existing = admin.getApps().find((a: App) => a.name === FIREBASE_ADMIN_APP_NAME);
+  const existing = admin.getApps().find((a) => a.name === FIREBASE_ADMIN_APP_NAME);
   if (existing) return existing;
 
   return admin.initializeApp(

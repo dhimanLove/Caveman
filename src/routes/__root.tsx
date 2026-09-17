@@ -176,7 +176,7 @@ function RootShell({ children }: { children: ReactNode }) {
                 var savedTheme = localStorage.getItem('caveman-theme');
                 var preferredTheme = savedTheme === 'dark' || savedTheme === 'light'
                   ? savedTheme
-                  : (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+                  : 'light';
                 document.documentElement.dataset.theme = preferredTheme;
                 document.documentElement.style.colorScheme = preferredTheme;
               } catch (e) {}

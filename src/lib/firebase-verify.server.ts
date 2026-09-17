@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 import { getAdminApp } from "./firebase-admin.server";
+import { fetchWithTimeout, isRecord } from "./http.server";
 
 /**
  * Verifies a Firebase ID token server-side using Google's Identity Toolkit.
@@ -17,13 +18,14 @@ export async function verifyFirebaseToken(idToken: string): Promise<string> {
 
   let res: Response;
   try {
-    res = await fetch(
+    res = await fetchWithTimeout(
       `https://identitytoolkit.googleapis.com/v1/accounts:lookup?key=${encodeURIComponent(apiKey)}`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ idToken }),
       },
+      8_000,
     );
   } catch {
     console.error("[auth] Identity Toolkit unreachable");
@@ -36,24 +38,25 @@ export async function verifyFirebaseToken(idToken: string): Promise<string> {
     throw new Error("Unauthorized");
   }
 
-  const data = await res.json();
-  const users = data?.users;
-  if (!Array.isArray(users) || users.length === 0 || !users[0].localId) {
+  const data: unknown = await res.json();
+  const users = isRecord(data) && Array.isArray(data.users) ? data.users : [];
+  const firstUser = isRecord(users[0]) ? users[0] : {};
+  if (typeof firstUser.localId !== "string" || !firstUser.localId) {
     throw new Error("Unauthorized");
   }
-  if (users[0].disabled === true) {
+  if (firstUser.disabled === true) {
     throw new Error("Unauthorized");
   }
   // Lightweight abuse prevention at the generator gate: reject throwaway /
   // unverified accounts. Google sign-in verifies email by default, so real
   // users are unaffected. Anonymous or email/password accounts that never
   // verified are blocked from consuming quota.
-  if (users[0].emailVerified === false) {
+  if (firstUser.emailVerified === false) {
     console.warn("[auth] Rejected unverified account");
     throw new Error("Unauthorized");
   }
 
-  return users[0].localId as string;
+  return firstUser.localId;
 }
 
 /*
@@ -67,12 +70,14 @@ export async function verifyAppCheck(token: string | undefined): Promise<boolean
   if (!token) return false;
   try {
     const adminApp = await getAdminApp();
-    const acMod: any = await import("firebase-admin/app-check");
-    const ac = acMod.default ?? acMod;
-    const result: any = await ac.verifyAppCheckToken(token, adminApp);
-    // Valid tokens carry the appCheckToken payload with no errors; invalid
-    // tokens surface a non-empty `errors` array (and no token payload).
-    return !!(result && result.appCheckToken && (result.errors?.length ?? 0) === 0);
+    const acMod = await import("firebase-admin/app-check");
+    const ac =
+      (acMod as unknown as { default?: typeof acMod }).default ??
+      (acMod as unknown as typeof acMod);
+    const result = await ac.getAppCheck(adminApp).verifyToken(token);
+    // Firebase Admin resolves valid tokens with their app ID and decoded
+    // claims. Invalid tokens reject from verifyToken and are handled below.
+    return Boolean(result.appId && result.token);
   } catch {
     return false;
   }

@@ -51,6 +51,19 @@ const RATE_LIMIT_MESSAGES = {
 function toFriendlyGenerationError(rawMessage: string): string | null {
   const m = rawMessage.toLowerCase();
 
+  // Groq's free/on-demand tier reports both TPM exhaustion and model request
+  // limits as provider errors. Keep this actionable instead of reducing it to
+  // the generic "Generation failed" message below.
+  if (
+    m.includes("rate limit") ||
+    m.includes("rate_limit") ||
+    m.includes("tokens per minute") ||
+    m.includes("tpm") ||
+    m.includes("quota")
+  ) {
+    return "Groq's free-tier limit is temporarily busy. Please wait about a minute and try again.";
+  }
+
   // Server-side configuration / credential problems. Never mention env var
   // names or key material in client-facing copy; log the raw cause server-side.
   if (

@@ -84,8 +84,10 @@ async function getDb(): Promise<import("firebase-admin/firestore").Firestore | n
       }
       try {
         const adminApp = await getAdminApp();
-        const fsMod: any = await import("firebase-admin/firestore");
-        const fs = fsMod.default ?? fsMod;
+        const fsMod = await import("firebase-admin/firestore");
+        const fs =
+          (fsMod as unknown as { default?: typeof fsMod }).default ??
+          (fsMod as unknown as typeof fsMod);
         return fs.getFirestore(adminApp) as import("firebase-admin/firestore").Firestore;
       } catch (err) {
         warnMemoryFallback(
@@ -142,7 +144,7 @@ export async function consumeQuota(uid: string): Promise<QuotaResult> {
   const ref = db.collection("rateLimits").doc(uid);
 
   try {
-    const result = (await db.runTransaction(async (tx: any) => {
+    const result = (await db.runTransaction(async (tx) => {
       const snap = await tx.get(ref);
       const now = Date.now();
       const current = snap.exists ? (snap.data() as RateDoc) : undefined;
@@ -190,7 +192,7 @@ export async function refundQuota(uid: string): Promise<void> {
   const ref = db.collection("rateLimits").doc(uid);
 
   try {
-    await db.runTransaction(async (tx: any) => {
+    await db.runTransaction(async (tx) => {
       const snap = await tx.get(ref);
       if (!snap.exists) return;
       const d = snap.data() as RateDoc;

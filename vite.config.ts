@@ -5,8 +5,7 @@ import viteReact from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 import { nitro } from "nitro/vite";
 
-// Standalone replacement for the former @lovable.dev/vite-tanstack-config
-// wrapper. Reproduces the same defaults this app relied on:
+// Project build configuration:
 //   - tanstackStart (TanStack Start SSR, bundled server entry -> src/server.ts)
 //   - @vitejs/plugin-react + @tailwindcss/vite
 //   - nitro (build-only, cloudflare-module default preset, matching the

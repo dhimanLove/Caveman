@@ -3,6 +3,8 @@ import { useLocation } from "@tanstack/react-router";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 
+type LenisInstance = InstanceType<typeof import("lenis").default>;
+
 gsap.registerPlugin(ScrollTrigger);
 
 export function SmoothScroll({ children }: { children: ReactNode }) {
@@ -13,20 +15,21 @@ export function SmoothScroll({ children }: { children: ReactNode }) {
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
     if (location.pathname.startsWith("/generate")) return;
 
-    let lenis: any = null;
+    let lenis: LenisInstance | null = null;
     let rafId = 0;
     let onLoad: (() => void) | null = null;
 
     (async () => {
       const { default: Lenis } = await import("lenis");
-      lenis = new Lenis({
+      const instance = new Lenis({
         duration: 1.2,
         easing: (t: number) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
         smoothWheel: true,
       });
+      lenis = instance;
 
       // Keep GSAP ScrollTrigger in sync with Lenis's virtual scroll
-      lenis.on("scroll", ScrollTrigger.update);
+      instance.on("scroll", ScrollTrigger.update);
 
       const raf = (time: number) => {
         lenis?.raf(time);
