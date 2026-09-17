@@ -74,11 +74,10 @@ function hasDurableFirebaseConfig(): boolean {
 }
 
 function requireDurableRateLimit(): boolean {
-  return (
-    process.env.REQUIRE_DURABLE_RATE_LIMIT === "true" ||
-    process.env.NODE_ENV === "production" ||
-    process.env.VERCEL === "1"
-  );
+  // Keep this explicit so deployments can run with the per-instance fallback
+  // while Firebase Admin credentials are being configured. Enable it in a
+  // fully configured production deployment for durable cross-instance quotas.
+  return process.env.REQUIRE_DURABLE_RATE_LIMIT === "true";
 }
 
 function warnMemoryFallback(message: string): void {
