@@ -1,21 +1,18 @@
 import { useState, useCallback, useEffect } from "react";
 import { useServerFn } from "@tanstack/react-start";
+import { onAuthStateChanged } from "firebase/auth";
 import { auth, getAppCheckFrontendToken } from "@/lib/firebase";
-import { generateSecure } from "@/lib/generate.functions";
+import { generateSecure, getQuotaStatus } from "@/lib/generate.functions";
 import type { ReadmeDiscovery } from "@/lib/readme.functions";
 
-const STORAGE_KEY_PREFIX = "caveman_usage_v2";
-const LOCAL_DAILY_LIMIT = 10;
+const STORAGE_KEY_PREFIX = "caveman_usage_v3";
+const GENERATION_LIMIT = 8;
 
 interface StoredUsage {
   uid: string;
-  day: string;
   used: number;
   cooldownEnd: number;
-}
-
-function currentDay(): string {
-  return new Date().toISOString().slice(0, 10);
+  syncedAt: number;
 }
 
 function storageKey(uid: string): string {
@@ -23,18 +20,18 @@ function storageKey(uid: string): string {
 }
 
 function loadStoredUsage(uid: string): StoredUsage {
-  const fresh: StoredUsage = { uid, day: currentDay(), used: 0, cooldownEnd: 0 };
+  const fresh: StoredUsage = { uid, used: 0, cooldownEnd: 0, syncedAt: 0 };
   try {
     const raw = localStorage.getItem(storageKey(uid));
     if (raw) {
       const parsed = JSON.parse(raw) as StoredUsage;
       if (
         parsed.uid === uid &&
-        typeof parsed.day === "string" &&
         typeof parsed.used === "number" &&
-        typeof parsed.cooldownEnd === "number"
+        typeof parsed.cooldownEnd === "number" &&
+        typeof parsed.syncedAt === "number"
       ) {
-        return parsed.day === currentDay() ? parsed : fresh;
+        return parsed;
       }
     }
   } catch {
@@ -137,7 +134,7 @@ function classifyError(err: unknown): { message: string; cooldown: number } {
           message:
             typeof parsed.message === "string"
               ? parsed.message
-              : "Daily limit reached. Try again later.",
+              : "You've used all 8 generations in the current 15-hour window. Try again later.",
           cooldown: parsed.cooldownEnd,
         };
       }
@@ -200,37 +197,76 @@ function classifyError(err: unknown): { message: string; cooldown: number } {
 
 export function useGenerate() {
   const fn = useServerFn(generateSecure);
+  const quotaFn = useServerFn(getQuotaStatus);
 
   const [state, setState] = useState<GenerateState>(() => {
     const uid = auth.currentUser?.uid || "anonymous";
     const stored = loadStoredUsage(uid);
-    const inCooldown = stored.cooldownEnd > Date.now();
     return {
       data: null,
       error: null,
-      cooldownExpiry: inCooldown ? stored.cooldownEnd : 0,
+      cooldownExpiry: 0,
       isPending: false,
-      localRemaining: Math.max(0, LOCAL_DAILY_LIMIT - stored.used),
+      localRemaining: Math.max(0, GENERATION_LIMIT - stored.used),
     };
   });
 
   useEffect(() => {
-    const refreshLocalUsage = () => {
-      const uid = auth.currentUser?.uid;
-      if (!uid) return;
-      const stored = loadStoredUsage(uid);
-      const cooldown = stored.cooldownEnd > Date.now() ? stored.cooldownEnd : 0;
-      setState((s) => ({
-        ...s,
-        cooldownExpiry: cooldown,
-        localRemaining: Math.max(0, LOCAL_DAILY_LIMIT - stored.used),
-      }));
+    const refreshQuota = async () => {
+      const user = auth.currentUser;
+      if (!user) return;
+
+      try {
+        const token = await user.getIdToken();
+        const appCheckToken = await getAppCheckFrontendToken();
+        const serverFn = quotaFn as unknown as (args: {
+          data: { _token: string; _appCheckToken: string };
+        }) => Promise<{ remaining: number; cooldownEnd: number }>;
+        const usage = await serverFn({ data: { _token: token, _appCheckToken: appCheckToken } });
+        const cooldown = usage.cooldownEnd > Date.now() ? usage.cooldownEnd : 0;
+        saveStoredUsage({
+          uid: user.uid,
+          used: Math.max(0, GENERATION_LIMIT - usage.remaining),
+          cooldownEnd: cooldown,
+          syncedAt: Date.now(),
+        });
+        setState((s) => ({
+          ...s,
+          cooldownExpiry: cooldown,
+          localRemaining: Math.max(0, usage.remaining),
+        }));
+      } catch {
+        // The generation endpoint remains the source of truth if this refresh
+        // fails (for example during a temporary network transition).
+        const stored = loadStoredUsage(user.uid);
+        setState((s) => ({
+          ...s,
+          localRemaining: Math.max(0, GENERATION_LIMIT - stored.used),
+        }));
+      }
     };
 
-    const interval = window.setInterval(refreshLocalUsage, 60_000);
-    refreshLocalUsage();
-    return () => window.clearInterval(interval);
-  }, []);
+    const unsubscribe = onAuthStateChanged(auth, () => void refreshQuota());
+    const interval = window.setInterval(() => void refreshQuota(), 60_000);
+    void refreshQuota();
+    return () => {
+      unsubscribe();
+      window.clearInterval(interval);
+    };
+  }, [quotaFn]);
+
+  useEffect(() => {
+    if (state.cooldownExpiry <= Date.now()) return;
+    const timeout = window.setTimeout(
+      () => {
+        setState((s) =>
+          s.cooldownExpiry > 0 && s.cooldownExpiry <= Date.now() ? { ...s, cooldownExpiry: 0 } : s,
+        );
+      },
+      Math.max(0, state.cooldownExpiry - Date.now()) + 100,
+    );
+    return () => window.clearTimeout(timeout);
+  }, [state.cooldownExpiry]);
 
   const generate = useCallback(
     async (input: GenerateInput) => {
@@ -244,28 +280,12 @@ export function useGenerate() {
             error: "Not signed in. Please sign in to generate.",
             cooldownExpiry: 0,
             isPending: false,
-            localRemaining: LOCAL_DAILY_LIMIT,
+            localRemaining: GENERATION_LIMIT,
           });
           return;
         }
 
         const stored = loadStoredUsage(user.uid);
-        if (stored.used >= LOCAL_DAILY_LIMIT || stored.cooldownEnd > Date.now()) {
-          const nextReset =
-            stored.cooldownEnd > Date.now()
-              ? stored.cooldownEnd
-              : new Date(`${currentDay()}T23:59:59.999Z`).getTime();
-          const message = "You have used all 10 generations for today. Try again tomorrow.";
-          setState((s) => ({
-            ...s,
-            data: null,
-            error: message,
-            cooldownExpiry: nextReset,
-            isPending: false,
-            localRemaining: 0,
-          }));
-          return;
-        }
 
         let token: string;
         try {
@@ -276,7 +296,7 @@ export function useGenerate() {
             error: "Failed to get authentication token. Please sign in again.",
             cooldownExpiry: 0,
             isPending: false,
-            localRemaining: Math.max(0, LOCAL_DAILY_LIMIT - stored.used),
+            localRemaining: Math.max(0, GENERATION_LIMIT - stored.used),
           });
           return;
         }
@@ -317,16 +337,16 @@ export function useGenerate() {
             error: "Generation returned empty. Try again.",
             cooldownExpiry: 0,
             isPending: false,
-            localRemaining: Math.max(0, LOCAL_DAILY_LIMIT - stored.used),
+            localRemaining: Math.max(0, GENERATION_LIMIT - stored.used),
           });
           return;
         }
 
         const updatedUsage: StoredUsage = {
           uid: user.uid,
-          day: currentDay(),
-          used: stored.used + 1,
+          used: Math.max(0, GENERATION_LIMIT - result.remaining),
           cooldownEnd: result.cooldownEnd || 0,
+          syncedAt: Date.now(),
         };
         saveStoredUsage(updatedUsage);
 
@@ -335,7 +355,7 @@ export function useGenerate() {
           error: null,
           cooldownExpiry: 0,
           isPending: false,
-          localRemaining: Math.max(0, LOCAL_DAILY_LIMIT - updatedUsage.used),
+          localRemaining: Math.max(0, result.remaining),
         });
         return result;
       } catch (err: unknown) {
@@ -343,9 +363,9 @@ export function useGenerate() {
         if (cooldown > 0) {
           saveStoredUsage({
             uid: auth.currentUser?.uid || "anonymous",
-            day: currentDay(),
-            used: LOCAL_DAILY_LIMIT,
+            used: GENERATION_LIMIT,
             cooldownEnd: cooldown,
+            syncedAt: Date.now(),
           });
         }
         setState((s) => ({
@@ -369,7 +389,7 @@ export function useGenerate() {
       error: null,
       cooldownExpiry: 0,
       isPending: false,
-      localRemaining: LOCAL_DAILY_LIMIT,
+      localRemaining: GENERATION_LIMIT,
     });
   }, []);
 

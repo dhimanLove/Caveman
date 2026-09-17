@@ -40,10 +40,35 @@ const Input = z.object({
 });
 
 const RATE_LIMIT_MESSAGES = {
-  user: "Rate limit reached. Your next generation unlocks in a few hours.",
+  user: "You've used all 8 generations in the current 15-hour window. Your next generation unlocks when the window resets.",
   ip: "Too many requests from this connection. Please wait a moment.",
   global: "Caveman is seeing very high demand right now. Please try again in a few minutes.",
+  unavailable: "The generation service is temporarily unavailable. Please try again later.",
 } as const;
+
+const QuotaInput = z.object({
+  _token: z.string().min(20).max(4096),
+  _appCheckToken: z.string().max(10240).optional().default(""),
+});
+
+/** Read the authenticated user's current quota without consuming a slot. */
+export const getQuotaStatus = createServerFn({ method: "POST" })
+  .validator((input: unknown) => QuotaInput.parse(input))
+  .handler(async ({ data }) => {
+    if (!isSameOrigin()) throw new Error("Unauthorized");
+
+    let uid: string;
+    try {
+      uid = await verifyFirebaseToken(data._token);
+    } catch {
+      throw new Error("Unauthorized");
+    }
+
+    if (!(await verifyAppCheck(data._appCheckToken))) throw new Error("Unauthorized");
+
+    const usage = await readUsage(uid);
+    return { remaining: usage.remaining, cooldownEnd: usage.cooldownEnd, count: usage.count };
+  });
 
 // Maps raw AI-provider/client errors to safe, user-facing messages. Returns
 // null when the message is curated/informative and can pass through as-is.
@@ -76,6 +101,10 @@ function toFriendlyGenerationError(rawMessage: string): string | null {
     m.includes("unable to connect")
   ) {
     return "The AI service is temporarily unavailable. Please try again in a few minutes.";
+  }
+
+  if (m.includes("durable firestore rate limiting") || m.includes("firestore rate limiting")) {
+    return "The generation service is temporarily unavailable. Please try again later.";
   }
 
   // Provider context-window exceeded (e.g. Groq "Request too large" for the
@@ -177,7 +206,14 @@ export const generateSecure = createServerFn({ method: "POST" })
     // Per-user rolling-window quota (primary gate). Checked before the global
     // cap so users already over their own limit never inflate the app-wide
     // counter (which would cause false "high demand" denials for everyone).
-    const rateLimit = await consumeQuota(uid);
+    let rateLimit: Awaited<ReturnType<typeof consumeQuota>>;
+    try {
+      rateLimit = await consumeQuota(uid);
+    } catch (err) {
+      refundIpLimit(ip, "generate");
+      console.error("[generateSecure] Durable quota unavailable:", err);
+      throw new Error(RATE_LIMIT_MESSAGES.unavailable);
+    }
     if (!rateLimit.allowed) {
       throw new Error(
         JSON.stringify({
@@ -192,8 +228,20 @@ export const generateSecure = createServerFn({ method: "POST" })
     // plain error so it surfaces in the inline error banner ("high demand"),
     // NOT the per-user cooldown screen (whose copy is about the user's own quota).
     // If the global cap closes AFTER the user quota was consumed, refund the
-    // user slot so the global denial doesn't eat one of their 10 generations.
-    const globalCap = await consumeGlobalCap();
+    // user slot so the global denial doesn't eat one of their 8 generations.
+    let globalCap: Awaited<ReturnType<typeof consumeGlobalCap>>;
+    try {
+      globalCap = await consumeGlobalCap();
+    } catch (err) {
+      try {
+        await refundQuota(uid);
+      } catch {
+        /* refund failure must not mask the availability error */
+      }
+      refundIpLimit(ip, "generate");
+      console.error("[generateSecure] Global quota unavailable:", err);
+      throw new Error(RATE_LIMIT_MESSAGES.unavailable);
+    }
     if (!globalCap.allowed) {
       try {
         await refundQuota(uid);

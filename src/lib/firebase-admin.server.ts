@@ -7,6 +7,7 @@ import type { App } from "firebase-admin/app";
  *
  * Credentials:
  *   FIREBASE_SERVICE_ACCOUNT_JSON  - full service-account JSON (recommended)
+ *   or FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL, FIREBASE_PRIVATE_KEY
  *   or GOOGLE_APPLICATION_CREDENTIALS / platform workload identity
  *
  * projectId is passed EXPLICITLY: outside GCP the client cannot auto-detect it
@@ -25,17 +26,22 @@ async function buildApp(): Promise<App> {
     (appMod as unknown as { default?: typeof appMod }).default ??
     (appMod as unknown as typeof appMod);
 
+  const projectIdFromJson = process.env.FIREBASE_SERVICE_ACCOUNT_JSON
+    ? (JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_JSON) as { project_id?: string }).project_id
+    : undefined;
+
   const credential = process.env.FIREBASE_SERVICE_ACCOUNT_JSON
     ? admin.cert(JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_JSON))
-    : admin.applicationDefault();
+    : process.env.FIREBASE_CLIENT_EMAIL && process.env.FIREBASE_PRIVATE_KEY
+      ? admin.cert({
+          projectId: process.env.FIREBASE_PROJECT_ID,
+          clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+          privateKey: process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, "\n"),
+        })
+      : admin.applicationDefault();
 
   const projectId =
-    process.env.FIREBASE_PROJECT_ID ||
-    process.env.GOOGLE_CLOUD_PROJECT ||
-    (process.env.FIREBASE_SERVICE_ACCOUNT_JSON
-      ? (JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_JSON) as { project_id?: string })
-          .project_id
-      : undefined);
+    process.env.FIREBASE_PROJECT_ID || process.env.GOOGLE_CLOUD_PROJECT || projectIdFromJson;
 
   const existing = admin.getApps().find((a) => a.name === FIREBASE_ADMIN_APP_NAME);
   if (existing) return existing;

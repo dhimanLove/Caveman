@@ -299,7 +299,9 @@ function AuthenticatedApp({ user, onSignOut }: { user: User; onSignOut: () => vo
   useEffect(() => {
     if (readme) setEditableReadme(readme);
   }, [readme]);
-  const disabled = isPending || localRemaining <= 0 || (tab === "url" ? !url : !description);
+  // The server owns the quota. localRemaining is only a cached display value;
+  // never disable generation from localStorage because it can be stale.
+  const disabled = isPending || (tab === "url" ? !url : !description);
   const inCooldown = cooldownExpiry > Date.now();
 
   useEffect(() => {
@@ -551,7 +553,7 @@ function AuthenticatedApp({ user, onSignOut }: { user: User; onSignOut: () => vo
         </div>
         <div className="flex items-center gap-3">
           <span className="text-[10px] font-medium text-ink/60 tabular-nums">
-            {Math.min(data?.remaining ?? localRemaining, localRemaining)}/10 remaining
+            {data?.remaining ?? localRemaining}/8 remaining
           </span>
           <Button
             onClick={() => setMobileOpen(true)}
