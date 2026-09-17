@@ -26,6 +26,7 @@ import { getAdminApp } from "./firebase-admin.server";
  *
  * Configure via env:
  *   FIREBASE_SERVICE_ACCOUNT_JSON  - full service-account JSON (recommended)
+ *   FIREBASE_SERVICE_ACCOUNT_JSON_BASE64 - base64 service-account JSON alternative
  *   or FIREBASE_PROJECT_ID + FIREBASE_CLIENT_EMAIL + FIREBASE_PRIVATE_KEY
  *   or GOOGLE_APPLICATION_CREDENTIALS / platform workload identity
  */
@@ -59,6 +60,7 @@ let warnedTransactionFallback = false;
 function hasDurableFirebaseConfig(): boolean {
   return Boolean(
     process.env.FIREBASE_SERVICE_ACCOUNT_JSON ||
+    process.env.FIREBASE_SERVICE_ACCOUNT_JSON_BASE64 ||
     (process.env.FIREBASE_PROJECT_ID &&
       process.env.FIREBASE_CLIENT_EMAIL &&
       process.env.FIREBASE_PRIVATE_KEY) ||
@@ -107,6 +109,10 @@ async function getDb(): Promise<import("firebase-admin/firestore").Firestore | n
           (fsMod as unknown as typeof fsMod);
         return fs.getFirestore(adminApp) as import("firebase-admin/firestore").Firestore;
       } catch (err) {
+        console.error(
+          "[rate-limit] Durable Firestore initialization failed:",
+          err instanceof Error ? err.message : err,
+        );
         if (requireDurableRateLimit()) {
           throw new Error("Durable Firestore rate limiting is unavailable.");
         }

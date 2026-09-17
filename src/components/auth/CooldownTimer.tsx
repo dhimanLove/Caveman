@@ -28,8 +28,8 @@ export function CooldownTimer({ cooldownEnd }: { cooldownEnd: number }) {
       </div>
       <h3 className="text-lg font-light text-ink">Generation limit reached</h3>
       <p className="mt-1.5 text-sm text-ink/60 max-w-xs leading-relaxed mx-auto">
-        You've used all 10 generations in this 10-hour window. Your next generation becomes
-        available in:
+        You've used all 8 generations in this 15-hour window. Your next generation becomes available
+        in:
       </p>
       <div className="mt-4 font-mono text-2xl font-medium text-ink tracking-wider">
         {formatDuration(remaining)}
