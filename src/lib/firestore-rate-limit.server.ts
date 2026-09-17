@@ -73,13 +73,6 @@ function hasDurableFirebaseConfig(): boolean {
   );
 }
 
-function requireDurableRateLimit(): boolean {
-  // Keep this explicit so deployments can run with the per-instance fallback
-  // while Firebase Admin credentials are being configured. Enable it in a
-  // fully configured production deployment for durable cross-instance quotas.
-  return process.env.REQUIRE_DURABLE_RATE_LIMIT === "true";
-}
-
 function warnMemoryFallback(message: string): void {
   if (warnedMemoryFallback) return;
   warnedMemoryFallback = true;
@@ -90,11 +83,6 @@ async function getDb(): Promise<import("firebase-admin/firestore").Firestore | n
   if (!dbPromise) {
     dbPromise = (async () => {
       if (!hasDurableFirebaseConfig()) {
-        if (requireDurableRateLimit()) {
-          throw new Error(
-            "Durable Firestore rate limiting is not configured. Add Firebase Admin credentials.",
-          );
-        }
         warnMemoryFallback(
           "Durable Firestore credentials are not configured; using in-memory quota for this instance.",
         );
@@ -112,9 +100,6 @@ async function getDb(): Promise<import("firebase-admin/firestore").Firestore | n
           "[rate-limit] Durable Firestore initialization failed:",
           err instanceof Error ? err.message : err,
         );
-        if (requireDurableRateLimit()) {
-          throw new Error("Durable Firestore rate limiting is unavailable.");
-        }
         warnMemoryFallback(
           "Firestore is unavailable; using in-memory quota for this instance. " +
             "Set FIREBASE_SERVICE_ACCOUNT_JSON for durable cross-instance limits.",
@@ -186,9 +171,6 @@ export async function consumeQuota(uid: string): Promise<QuotaResult> {
     if (!result.allowed) logDenial(uid, true);
     return result;
   } catch (err) {
-    if (requireDurableRateLimit()) {
-      throw new Error("Durable Firestore rate limiting is unavailable.");
-    }
     if (!warnedTransactionFallback) {
       warnedTransactionFallback = true;
       console.warn(
