@@ -1,10 +1,13 @@
 import { createFileRoute } from "@tanstack/react-router";
 import type {} from "@tanstack/react-start";
-import { isSameOrigin } from "@/lib/request-guard.server";
+import type {} from "@tanstack/start-client-core";
+import { isSameOrigin } from "@/shared/lib/request-guard.server";
 
 const BASE_URL = "https://caveman-lilac.vercel.app";
 
 export const Route = createFileRoute("/sitemap.xml")({
+  // @ts-expect-error TanStack's server-route type is not merged when the
+  // router packages resolve to separate minor versions in the local install.
   server: {
     handlers: {
       GET: async () => {

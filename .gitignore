@@ -35,7 +35,6 @@ firebase-debug.log
 .env
 .env.*
 !.env.example
-.env.example
 .dev.vars
 *.local
 .envrc

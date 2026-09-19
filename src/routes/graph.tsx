@@ -6,14 +6,14 @@ import {
   IconLoader as CircleNotch,
   IconWarning as Warning,
   IconArrowLeft as ArrowLeft,
-} from "@/components/icons";
+} from "@/shared/components/icons";
 import gsap from "gsap";
 
-import { Navbar } from "@/components/layout/Navbar";
-import { Footer } from "@/components/layout/Footer";
-import { CommitGraph } from "@/components/graph/CommitGraph";
-import { CommitDetail } from "@/components/graph/CommitDetail";
-import { fetchCommitGraph } from "@/lib/graph.functions";
+import { Navbar } from "@/shared/components/layout/Navbar";
+import { Footer } from "@/shared/components/layout/Footer";
+import { CommitGraph } from "@/features/graph/components/CommitGraph";
+import { CommitDetail } from "@/features/graph/components/CommitDetail";
+import { fetchCommitGraph } from "@/features/graph/server/graph.functions";
 
 interface CommitNode {
   sha: string;

@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState, useRef, useEffect } from "react";
+import { useCallback, useState, useRef, useEffect } from "react";
 import type { User } from "firebase/auth";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -19,21 +19,21 @@ import {
   IconCode as CodeIcon,
   IconPencil as PencilSimple,
   IconPickaxe as Pickaxe,
-} from "@/components/icons";
+} from "@/shared/components/icons";
 
-import { useAuth } from "@/hooks/useAuth";
-import { useGenerate } from "@/hooks/useGenerate";
-import { SignInScreen } from "@/components/auth/SignInScreen";
-import { CooldownTimer } from "@/components/auth/CooldownTimer";
-import { AutoDetectionPanel } from "@/components/auto-detect/AutoDetectionPanel";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Separator } from "@/components/ui/separator";
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { CavemanMark } from "@/components/layout/Logo";
-import { ThemeToggle } from "@/components/layout/ThemeToggle";
-import { KoboyoIllustration } from "@/components/illustrations/KoboyoIllustration";
+import { useAuth } from "@/features/auth/hooks/useAuth";
+import { useGenerate } from "@/features/generation/hooks/useGenerate";
+import { SignInScreen } from "@/features/auth/components/SignInScreen";
+import { CooldownTimer } from "@/features/auth/components/CooldownTimer";
+import { AutoDetectionPanel } from "@/features/generation/components/AutoDetectionPanel";
+import { Button } from "@/shared/components/ui/button";
+import { Input } from "@/shared/components/ui/input";
+import { Separator } from "@/shared/components/ui/separator";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/shared/components/ui/sheet";
+import { Tabs, TabsList, TabsTrigger } from "@/shared/components/ui/tabs";
+import { CavemanMark } from "@/shared/components/layout/Logo";
+import { ThemeToggle } from "@/shared/components/layout/ThemeToggle";
+import { KoboyoIllustration } from "@/shared/components/illustrations/KoboyoIllustration";
 
 function headingId(text: string) {
   const cleaned = text
@@ -118,13 +118,17 @@ const DEFAULT_SECTIONS = [...ALL_SECTIONS];
 const STYLE_META: Record<Style, { desc: string }> = {
   minimal: { desc: "Quick start, bare essentials" },
   standard: { desc: "Balanced, good for most projects" },
-  comprehensive: { desc: "Deep docs, full structure" },
+  comprehensive: { desc: "Full docs: architecture, security, deployment" },
 };
 
 const TONE_OPTIONS = [
   { value: "technical" as Tone, label: "Technical", desc: "Precise, developer-focused" },
   { value: "friendly" as Tone, label: "Friendly", desc: "Approachable, conversational" },
-  { value: "enterprise" as Tone, label: "Enterprise", desc: "Formal, professional" },
+  {
+    value: "enterprise" as Tone,
+    label: "Enterprise",
+    desc: "Formal, operational, evidence-backed",
+  },
 ];
 
 const LOADING_MESSAGES = [
@@ -315,7 +319,7 @@ function AuthenticatedApp({ user, onSignOut }: { user: User; onSignOut: () => vo
     return () => clearInterval(interval);
   }, [isPending]);
 
-  const onCopy = async () => {
+  const onCopy = useCallback(async () => {
     if (!readme) return;
     try {
       if (navigator.clipboard && navigator.clipboard.writeText) {
@@ -335,9 +339,9 @@ function AuthenticatedApp({ user, onSignOut }: { user: User; onSignOut: () => vo
     } catch (err) {
       console.error("Copy failed:", err);
     }
-  };
+  }, [editableReadme, readme]);
 
-  const onDownload = () => {
+  const onDownload = useCallback(() => {
     if (!readme) return;
     try {
       const blob = new Blob([editableReadme || readme], { type: "text/markdown" });
@@ -353,7 +357,7 @@ function AuthenticatedApp({ user, onSignOut }: { user: User; onSignOut: () => vo
     } catch (err) {
       console.error("Download failed:", err);
     }
-  };
+  }, [editableReadme, readme]);
 
   const handleGenerate = () => {
     generate({
@@ -382,7 +386,7 @@ function AuthenticatedApp({ user, onSignOut }: { user: User; onSignOut: () => vo
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [readme, editableReadme]);
+  }, [editableReadme, onCopy, onDownload, readme]);
 
   const sidebarContent = (
     <motion.div

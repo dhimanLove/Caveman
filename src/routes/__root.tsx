@@ -12,10 +12,10 @@ import { type ReactNode } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 
 import appCss from "../styles.css?url";
-import { SmoothScroll } from "../components/layout/SmoothScroll";
-import { EarlyAccessBanner } from "../components/layout/EarlyAccessBanner";
-import { CavemanMark } from "../components/layout/Logo";
-import { ThemeProvider } from "../components/layout/ThemeProvider";
+import { SmoothScroll } from "../shared/components/layout/SmoothScroll";
+import { EarlyAccessBanner } from "../shared/components/layout/EarlyAccessBanner";
+import { CavemanMark } from "../shared/components/layout/Logo";
+import { ThemeProvider } from "../shared/components/layout/ThemeProvider";
 
 function NotFoundComponent() {
   return (
@@ -40,7 +40,7 @@ function NotFoundComponent() {
   );
 }
 
-function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
+function ErrorComponent({ error, reset }: { error: unknown; reset: () => void }) {
   console.error(error);
   const router = useRouter();
 

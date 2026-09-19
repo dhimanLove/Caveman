@@ -1,18 +1,18 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { Navbar } from "@/components/layout/Navbar";
-import { Footer } from "@/components/layout/Footer";
-import { Hero } from "@/components/marketing/Hero";
-import { LogoStrip } from "@/components/marketing/LogoStrip";
-import { SecondaryHero } from "@/components/marketing/SecondaryHero";
-import { StatsStrip } from "@/components/marketing/StatsStrip";
-import { HowItWorks } from "@/components/marketing/HowItWorks";
-import { Features } from "@/components/marketing/Features";
-import { Spotlight } from "@/components/marketing/Spotlight";
-import { Preview } from "@/components/marketing/Preview";
-import { Testimonials } from "@/components/marketing/Testimonials";
-import { FAQ } from "@/components/marketing/FAQ";
-import { Comparison } from "@/components/marketing/Comparison";
-import { FinalCTA } from "@/components/marketing/FinalCTA";
+import { Navbar } from "@/shared/components/layout/Navbar";
+import { Footer } from "@/shared/components/layout/Footer";
+import { Hero } from "@/features/marketing/components/Hero";
+import { LogoStrip } from "@/features/marketing/components/LogoStrip";
+import { SecondaryHero } from "@/features/marketing/components/SecondaryHero";
+import { StatsStrip } from "@/features/marketing/components/StatsStrip";
+import { HowItWorks } from "@/features/marketing/components/HowItWorks";
+import { Features } from "@/features/marketing/components/Features";
+import { Spotlight } from "@/features/marketing/components/Spotlight";
+import { Preview } from "@/features/marketing/components/Preview";
+import { Testimonials } from "@/features/marketing/components/Testimonials";
+import { FAQ } from "@/features/marketing/components/FAQ";
+import { Comparison } from "@/features/marketing/components/Comparison";
+import { FinalCTA } from "@/features/marketing/components/FinalCTA";
 
 const siteUrl = "https://caveman-lilac.vercel.app";
 

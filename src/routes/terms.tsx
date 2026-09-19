@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { Navbar } from "@/components/layout/Navbar";
-import { Footer } from "@/components/layout/Footer";
+import { Navbar } from "@/shared/components/layout/Navbar";
+import { Footer } from "@/shared/components/layout/Footer";
 
 export const Route = createFileRoute("/terms")({
   head: () => ({
@@ -56,9 +56,10 @@ function TermsPage() {
 
           <h2 className="text-lg font-light text-ink">Rate Limits and Abuse</h2>
           <p>
-            We enforce daily per-account usage limits to keep the service reliable for everyone.
-            Attempting to bypass these limits, create accounts to evade them, or otherwise abuse the
-            service may result in throttling or termination of access.
+            We enforce an 8-generation rolling limit per authenticated account every 15 hours to
+            keep the service reliable for everyone. Attempting to bypass these limits, create
+            accounts to evade them, or otherwise abuse the service may result in throttling or
+            termination of access.
           </p>
 
           <h2 className="text-lg font-light text-ink">Disclaimer of Warranties</h2>
