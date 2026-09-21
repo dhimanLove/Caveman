@@ -21,8 +21,9 @@ import { getAdminApp } from "./firebase-admin.server";
  * cold starts. The sliding-window core lives in rate-window.server.ts so the
  * durable and in-memory backends stay identical.
  *
- * Fallback: per-instance in-memory limiter when Firebase Admin credentials are
- * not configured (logs a warning - resets on restart, not shared across pods).
+ * Fallback: per-instance in-memory limiter is allowed only outside production
+ * or when REQUIRE_DURABLE_RATE_LIMIT is explicitly false. Production defaults
+ * to fail-closed so a deployment cannot silently lose its global quota.
  *
  * Configure via env:
  *   FIREBASE_SERVICE_ACCOUNT_JSON  - full service-account JSON (recommended)
@@ -52,7 +53,7 @@ interface RateDoc {
   lastGen: number;
 }
 
-// undefined = init not attempted yet, null = unavailable (use memory fallback)
+// undefined = init not attempted yet, null = unavailable
 let dbPromise: Promise<import("firebase-admin/firestore").Firestore | null> | undefined;
 let warnedMemoryFallback = false;
 let warnedTransactionFallback = false;
@@ -73,6 +74,10 @@ function hasDurableFirebaseConfig(): boolean {
   );
 }
 
+function requiresDurableRateLimit(): boolean {
+  return process.env.NODE_ENV === "production" || process.env.REQUIRE_DURABLE_RATE_LIMIT === "true";
+}
+
 function warnMemoryFallback(message: string): void {
   if (warnedMemoryFallback) return;
   warnedMemoryFallback = true;
@@ -83,9 +88,9 @@ async function getDb(): Promise<import("firebase-admin/firestore").Firestore | n
   if (!dbPromise) {
     dbPromise = (async () => {
       if (!hasDurableFirebaseConfig()) {
-        warnMemoryFallback(
-          "Durable Firestore credentials are not configured; using in-memory quota for this instance.",
-        );
+        const message = "Durable Firestore credentials are not configured.";
+        if (requiresDurableRateLimit()) console.error(`[rate-limit] ${message}`);
+        else warnMemoryFallback(`${message} Using in-memory quota for this instance.`);
         return null;
       }
       try {
@@ -100,10 +105,14 @@ async function getDb(): Promise<import("firebase-admin/firestore").Firestore | n
           "[rate-limit] Durable Firestore initialization failed:",
           err instanceof Error ? err.message : err,
         );
-        warnMemoryFallback(
-          "Firestore is unavailable; using in-memory quota for this instance. " +
-            "Set FIREBASE_SERVICE_ACCOUNT_JSON for durable cross-instance limits.",
-        );
+        if (requiresDurableRateLimit()) {
+          console.error("[rate-limit] Durable quota is required; refusing the in-memory fallback.");
+        } else {
+          warnMemoryFallback(
+            "Firestore is unavailable; using in-memory quota for this instance. " +
+              "Set FIREBASE_SERVICE_ACCOUNT_JSON for durable cross-instance limits.",
+          );
+        }
         console.warn(
           "[rate-limit] Durable store details:",
           err instanceof Error ? err.message : err,
@@ -146,6 +155,9 @@ export async function consumeQuota(uid: string): Promise<QuotaResult> {
   const db = await getDb();
 
   if (!db) {
+    if (requiresDurableRateLimit()) {
+      throw new Error("Durable Firestore rate limiting is unavailable.");
+    }
     const res = memoryCheck(uid);
     if (!res.allowed) logDenial(uid, false);
     return { ...res, resetAt: res.cooldownEnd || 0 };
@@ -171,6 +183,10 @@ export async function consumeQuota(uid: string): Promise<QuotaResult> {
     if (!result.allowed) logDenial(uid, true);
     return result;
   } catch (err) {
+    if (requiresDurableRateLimit()) {
+      console.error("[rate-limit] Durable transaction failed; refusing the in-memory fallback.", err);
+      throw new Error("Durable Firestore rate limiting is unavailable.");
+    }
     if (!warnedTransactionFallback) {
       warnedTransactionFallback = true;
       console.warn(
@@ -195,6 +211,7 @@ export async function refundQuota(uid: string): Promise<void> {
     db = null;
   }
   if (!db) {
+    if (requiresDurableRateLimit()) return;
     memoryDecrement(uid);
     return;
   }
@@ -213,7 +230,7 @@ export async function refundQuota(uid: string): Promise<void> {
     });
   } catch (err) {
     console.warn("[rate-limit] Refund failed:", err instanceof Error ? err.message : err);
-    memoryDecrement(uid);
+    if (!requiresDurableRateLimit()) memoryDecrement(uid);
   }
 }
 
@@ -222,6 +239,9 @@ export async function readUsage(
 ): Promise<{ count: number; remaining: number; windowStart: number; cooldownEnd: number }> {
   const db = await getDb();
   if (!db) {
+    if (requiresDurableRateLimit()) {
+      throw new Error("Durable Firestore rate limiting is unavailable.");
+    }
     const fallback = memoryGetUsage(uid);
     return { ...fallback, cooldownEnd: fallback.cooldownEnd || 0 };
   }
@@ -235,7 +255,11 @@ export async function readUsage(
     }
     const d = snap.data() as RateDoc;
     return windowState(d.timestamps, Date.now(), maxCount(), USER_RATE_WINDOW_MS);
-  } catch {
+  } catch (err) {
+    if (requiresDurableRateLimit()) {
+      console.error("[rate-limit] Durable usage read failed:", err);
+      throw new Error("Durable Firestore rate limiting is unavailable.");
+    }
     const fallback = memoryGetUsage(uid);
     return { ...fallback, cooldownEnd: fallback.cooldownEnd || 0 };
   }
@@ -292,6 +316,9 @@ export async function consumeGlobalCap(): Promise<GlobalCapResult> {
 
   const db = await getDb();
   if (!db) {
+    if (requiresDurableRateLimit()) {
+      throw new Error("Durable Firestore global quota is unavailable.");
+    }
     const count = (globalMemory.get(day) ?? 0) + 1;
     globalMemory.set(day, count);
     console.log(
@@ -342,6 +369,10 @@ export async function consumeGlobalCap(): Promise<GlobalCapResult> {
     }
     return result;
   } catch (err) {
+    if (requiresDurableRateLimit()) {
+      console.error("[rate-limit] Durable global-cap transaction failed; refusing memory fallback.", err);
+      throw new Error("Durable Firestore global quota is unavailable.");
+    }
     if (!warnedTransactionFallback) {
       warnedTransactionFallback = true;
       console.warn(

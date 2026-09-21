@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { getAdminApp } from "./firebase-admin.server";
-import { fetchWithTimeout, isRecord } from "./http.server";
+import { fetchWithTimeout, isRecord, readJsonWithLimit } from "./http.server";
 
 /**
  * Verifies a Firebase ID token server-side using Google's Identity Toolkit.
@@ -38,7 +38,7 @@ export async function verifyFirebaseToken(idToken: string): Promise<string> {
     throw new Error("Unauthorized");
   }
 
-  const data: unknown = await res.json();
+  const data: unknown = await readJsonWithLimit(res, 256 * 1024);
   const users = isRecord(data) && Array.isArray(data.users) ? data.users : [];
   const firstUser = isRecord(users[0]) ? users[0] : {};
   if (typeof firstUser.localId !== "string" || !firstUser.localId) {
@@ -61,12 +61,15 @@ export async function verifyFirebaseToken(idToken: string): Promise<string> {
 
 /*
  * App Check: verifies the client's App Check token (ReCaptcha evidence) using
- * Firebase Admin. Gate behind ENFORCE_APP_CHECK=true so local/dev environments
- * (where the project has no App Check provisioned) keep working; the hosted
- * production build, and Firestore rules, enforce it unconditionally.
+ * Firebase Admin. Development/test may omit App Check; deployed runtimes
+ * enforce it so missing edge bindings cannot silently disable the gate.
  */
 export async function verifyAppCheck(token: string | undefined): Promise<boolean> {
-  if (process.env.ENFORCE_APP_CHECK !== "true") return true;
+  // Only development/test runtimes may opt out by omission. This prevents an
+  // edge deployment that failed to expose its environment bindings from
+  // silently disabling App Check.
+  const localRuntime = process.env.NODE_ENV === "development" || process.env.NODE_ENV === "test";
+  if (localRuntime && process.env.ENFORCE_APP_CHECK !== "true") return true;
   if (!token) return false;
   try {
     const adminApp = await getAdminApp();

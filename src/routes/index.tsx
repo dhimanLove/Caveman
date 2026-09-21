@@ -30,7 +30,7 @@ const faqEntries = [
     name: "Do you support private repos?",
     acceptedAnswer: {
       "@type": "Answer",
-      text: "Yes, when the deployment has a GitHub access token configured for repository scanning. The deep scan then uses the same analysis path for public and private repositories.",
+      text: "Public GitHub repositories are supported. Private-repository access will require a future user-scoped GitHub authorization flow.",
     },
   },
   {
@@ -173,7 +173,7 @@ function LandingPage() {
         section from real context. It supports 17+ customizable sections, technical to friendly
         tones, and is designed to finish within the configured generation window. Caveman is free
         during early access and requires a Google sign-in for generation. Public repositories work
-        by default; private repository scanning requires a configured GitHub access token.
+        by default. Private repository scanning is not enabled because repository access must be bound to the requesting GitHub user.
       </div>
     </div>
   );

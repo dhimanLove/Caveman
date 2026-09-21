@@ -29,8 +29,8 @@ import {
 const Input = z.object({
   _token: z.string().min(20).max(4096),
   // Optional: sent by the client only when App Check is configured there. An
-  // empty value is UNAVAILABLE-token, NOT an error — enforcement happens
-  // server-side via verifyAppCheck (rejects empty only when ENFORCE_APP_CHECK).
+  // empty value is unavailable-token; production verification fails closed in
+  // verifyAppCheck when App Check is not configured correctly.
   _appCheckToken: z.string().max(10240).optional().default(""),
   projectUrl: z.string().max(300).optional().default(""),
   description: z.string().max(2000).optional().default(""),
@@ -124,7 +124,7 @@ function toFriendlyGenerationError(rawMessage: string): string | null {
   }
 
   if (m.includes("could not access repository files")) {
-    return "Could not read the repository files. Public repos work without extra setup; private repos require a configured GitHub access token.";
+    return "Could not read the repository files. Only public GitHub repositories are supported.";
   }
 
   // Generic wrapped "README generation failed: ..." — the tail is raw provider
@@ -173,8 +173,7 @@ export const generateSecure = createServerFn({ method: "POST" })
     }
 
     // App Check: block requests that don't carry evidence of running in the
-    // real app. Gated by ENFORCE_APP_CHECK=true (see .env.example); the hosted
-    // production build sets it so only genuine app instances can generate.
+    // real app. Development/test may opt out; deployed runtimes fail closed.
     if (!(await verifyAppCheck(_appCheckToken))) {
       recordAuthFailure(ip);
       console.warn(

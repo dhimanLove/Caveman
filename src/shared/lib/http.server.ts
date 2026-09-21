@@ -23,6 +23,44 @@ export async function fetchWithTimeout(
   }
 }
 
+/** Read an upstream body without allowing a remote response to grow memory
+ * without bound. All server-side callers handling attacker-selectable remote
+ * content should use this helper instead of response.text()/response.json(). */
+export async function readResponseTextWithLimit(response: Response, maxBytes: number): Promise<string> {
+  const contentLength = response.headers.get("content-length");
+  const advertisedLength = contentLength ? Number(contentLength) : NaN;
+  if (Number.isFinite(advertisedLength) && advertisedLength > maxBytes) {
+    throw new Error("Upstream response exceeded the configured size limit.");
+  }
+
+  const body = response.body;
+  if (!body) throw new Error("Upstream response did not provide a readable body.");
+
+  const reader = body.getReader();
+  const decoder = new TextDecoder();
+  let totalBytes = 0;
+  let text = "";
+  try {
+    for (;;) {
+      const chunk = await reader.read();
+      if (chunk.done) break;
+      totalBytes += chunk.value.byteLength;
+      if (totalBytes > maxBytes) {
+        await reader.cancel();
+        throw new Error("Upstream response exceeded the configured size limit.");
+      }
+      text += decoder.decode(chunk.value, { stream: true });
+    }
+    return text + decoder.decode();
+  } finally {
+    reader.releaseLock();
+  }
+}
+
+export async function readJsonWithLimit<T>(response: Response, maxBytes: number): Promise<T> {
+  return JSON.parse(await readResponseTextWithLimit(response, maxBytes)) as T;
+}
+
 export function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
 }

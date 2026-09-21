@@ -3,22 +3,26 @@ import { pseudonymize } from "./firebase-verify.server";
 
 /**
  * Per-request guards for server functions:
- *  - client IP extraction (proxy-aware)
+ *  - client IP extraction (proxy-aware only when explicitly enabled)
  *  - same-origin enforcement
  *  - secondary per-IP limits (defense against mass fake-account abuse;
  *    the primary UID quota is enforced by firestore-rate-limit.server.ts)
  */
 
 export function getClientIp(): string {
+  const trustProxyHeaders = shouldTrustProxyHeaders();
   try {
-    const ip = getRequestIP({ xForwardedFor: true });
+    const ip = trustProxyHeaders ? getRequestIP({ xForwardedFor: true }) : getRequestIP();
     if (ip) return ip.split(",")[0].trim();
   } catch {
     /* fall through */
   }
-  const fwd = getRequestHeader("x-forwarded-for");
-  if (fwd) return fwd.split(",")[0].trim();
-  return getRequestHeader("cf-connecting-ip") || "unknown";
+  if (trustProxyHeaders) {
+    const fwd = getRequestHeader("x-forwarded-for");
+    if (fwd) return fwd.split(",")[0].trim();
+    return getRequestHeader("cf-connecting-ip") || "unknown";
+  }
+  return "unknown";
 }
 
 function normalizeHost(h: string | undefined): string {
@@ -44,13 +48,23 @@ function isLocalHost(host: string): boolean {
  */
 export function isSameOrigin(): boolean {
   const origin = getRequestHeader("origin");
-  const host = normalizeHost(getRequestHeader("x-forwarded-host") || getRequestHeader("host"));
+  const trustProxyHeaders = shouldTrustProxyHeaders();
+  const allowedExtraOrigins = getAllowedExtraOrigins();
+  const host = normalizeHost(
+    (trustProxyHeaders ? getRequestHeader("x-forwarded-host") : undefined) ||
+      getRequestHeader("host"),
+  );
   const isLocal = isLocalHost(host);
 
   // TLS enforcement (production only): reject non-HTTPS unless localhost.
   if (!isLocal && process.env.NODE_ENV === "production") {
-    const proto = (getRequestHeader("x-forwarded-proto") || "").split(",")[0].trim().toLowerCase();
-    if (proto !== "https") return false;
+    if (trustProxyHeaders) {
+      const proto = (getRequestHeader("x-forwarded-proto") || "")
+        .split(",")[0]
+        .trim()
+        .toLowerCase();
+      if (proto !== "https") return false;
+    }
   }
 
   if (!origin) return true;
@@ -66,15 +80,23 @@ export function isSameOrigin(): boolean {
   }
 
   // Non-local browser origins must arrive over HTTPS.
-  if (!isLocal && !secure && !ALLOWED_EXTRA.includes(originHost)) return false;
+  if (!isLocal && !secure && !allowedExtraOrigins.includes(originHost)) return false;
 
-  return !host || originHost === host || ALLOWED_EXTRA.includes(originHost);
+  return !host || originHost === host || allowedExtraOrigins.includes(originHost);
 }
 
-const ALLOWED_EXTRA = (process.env.ALLOWED_ORIGINS || "")
-  .split(",")
-  .map((s) => s.trim().toLowerCase())
-  .filter(Boolean);
+function shouldTrustProxyHeaders(): boolean {
+  // Cloudflare exposes bindings only during the request lifecycle. Do not
+  // capture this value at module initialization.
+  return process.env.TRUST_PROXY_HEADERS === "true";
+}
+
+function getAllowedExtraOrigins(): string[] {
+  return (process.env.ALLOWED_ORIGINS || "")
+    .split(",")
+    .map((s) => s.trim().toLowerCase())
+    .filter(Boolean);
+}
 
 interface IpWindow {
   dayStart: number;

@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useCallback, useState, useRef, useEffect } from "react";
 import type { User } from "firebase/auth";
 import { motion, AnimatePresence } from "framer-motion";
@@ -31,6 +31,7 @@ import { Input } from "@/shared/components/ui/input";
 import { Separator } from "@/shared/components/ui/separator";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/shared/components/ui/sheet";
 import { Tabs, TabsList, TabsTrigger } from "@/shared/components/ui/tabs";
+import { MacWindowDots } from "@/shared/components/ui/MacWindowDots";
 import { CavemanMark } from "@/shared/components/layout/Logo";
 import { ThemeToggle } from "@/shared/components/layout/ThemeToggle";
 import { KoboyoIllustration } from "@/shared/components/illustrations/KoboyoIllustration";
@@ -442,8 +443,8 @@ function AuthenticatedApp({ user, onSignOut }: { user: User; onSignOut: () => vo
             </div>
           )}
           <p className="generate-helper-text text-[10px] leading-relaxed">
-            Public repos work without extra setup. Private repos require a configured GitHub access
-            token on the server.
+            Public GitHub repositories are supported. Private-repository access requires a
+            user-scoped GitHub authorization flow and is not enabled yet.
           </p>
         </div>
 
@@ -545,11 +546,13 @@ function AuthenticatedApp({ user, onSignOut }: { user: User; onSignOut: () => vo
     <div className="flex h-[100dvh] min-h-0 flex-col overflow-hidden bg-paper">
       {/* Header */}
       <header className="h-11 border-b border-bone bg-paper flex items-center justify-between px-4 shrink-0">
-        <div className="flex items-center gap-2.5 group">
-          <CavemanMark className="w-6 h-6" iconClassName="w-4 h-4" />
-          <span className="text-[10px] font-medium text-ink uppercase tracking-[0.286em]">
-            Caveman
-          </span>
+        <div className="flex items-center gap-2.5">
+          <Link to="/" aria-label="Go to Caveman home" className="flex items-center gap-2.5 group">
+            <CavemanMark className="w-6 h-6" iconClassName="w-4 h-4" />
+            <span className="text-[10px] font-medium text-ink uppercase tracking-[0.286em]">
+              Caveman
+            </span>
+          </Link>
           <span className="w-px h-3 bg-bone" />
           <span className="hidden md:inline text-[10px] font-medium text-ink/70">
             README Generator
@@ -765,9 +768,7 @@ function AuthenticatedApp({ user, onSignOut }: { user: User; onSignOut: () => vo
                           {view === "preview" ? (
                             <div className="border border-bone rounded-lg bg-paper overflow-hidden">
                               <div className="flex items-center gap-1.5 border-b border-bone px-4 py-2.5 bg-cream">
-                                <span className="w-2.5 h-2.5 rounded-full bg-bone" />
-                                <span className="w-2.5 h-2.5 rounded-full bg-bone" />
-                                <span className="w-2.5 h-2.5 rounded-full bg-bone" />
+                                <MacWindowDots />
                                 <span className="ml-3 text-[10px] font-medium text-ink/60">
                                   README.md
                                 </span>
@@ -876,11 +877,7 @@ function MarkdownRender({ text, sourceUrl }: { text: string; sourceUrl?: string 
               <span className="text-[10px] font-medium uppercase tracking-[0.286em] text-ink/40">
                 {lang}
               </span>
-              <div className="flex gap-1">
-                <span className="w-2 h-2 rounded-full bg-bone" />
-                <span className="w-2 h-2 rounded-full bg-bone" />
-                <span className="w-2 h-2 rounded-full bg-bone" />
-              </div>
+              <MacWindowDots className="gap-1" />
             </div>
           )}
           <pre

@@ -68,7 +68,7 @@ const steps = [
     title: "Connect your project",
     desc: "Paste a GitHub URL or type a quick description. Zero setup.",
     detail:
-      "Public repositories work by default. Private scans require a configured GitHub access token.",
+      "Public repositories work by default. Private scans require a future user-scoped GitHub authorization flow.",
   },
   {
     icon: <PersonFaceScanIcon size={40} />,

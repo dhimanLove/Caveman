@@ -63,12 +63,19 @@ The server uses the Firebase UID, not a client-provided email string. For this a
 sign-in, that gives one stable quota per Gmail/Google account across devices. The local browser
 counter is only a convenience display; clearing storage cannot reset the Firestore quota.
 
-If Firebase Admin is unavailable, generation still works with the same 8/15-hour rules in memory,
-but the quota is per Vercel instance and can reset after a cold start. Firestore is used
-automatically whenever valid Admin credentials are available.
+In production, generation fails closed if Firebase Admin or Firestore is unavailable. This avoids
+silently changing a shared quota into a per-instance quota after a cold start or deployment issue.
+For local development, the in-memory limiter may be used.
 
 ## Optional App Check hardening
 
-For additional bot protection, register the web app under **App Check**, create a reCAPTCHA v3
-site key, set `VITE_RECAPTCHA_SITE_KEY`, and then set `ENFORCE_APP_CHECK=true` in Vercel. Redeploy
-after both variables are present.
+For bot protection, register the web app under **App Check**, create a reCAPTCHA v3 site key, set
+`VITE_RECAPTCHA_SITE_KEY`, and set `ENFORCE_APP_CHECK=true` in Vercel. Deployed runtimes fail closed
+when App Check is unavailable. Redeploy after both variables are present.
+
+## Proxy and Cloudflare deployment
+
+Set `TRUST_PROXY_HEADERS=true` only when the trusted edge overwrites
+`x-forwarded-for`, `cf-connecting-ip`, `x-forwarded-host`, and `x-forwarded-proto`, and the origin
+cannot be reached directly. Cloudflare bindings must be exposed to the server runtime configuration;
+if they are not, the application fails closed instead of disabling App Check or durable quotas.

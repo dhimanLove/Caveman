@@ -1,6 +1,7 @@
 import { useRef, useEffect } from "react";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
+import { MacWindowDots } from "@/shared/components/ui/MacWindowDots";
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -96,9 +97,7 @@ export function Spotlight() {
           {readmes.map((r, i) => (
             <div key={i} className="spotlight-card bg-paper overflow-hidden">
               <div className="flex items-center gap-1.5 px-4 py-3 border-b border-bone">
-                <span className="w-2 h-2 rounded-full bg-bone" />
-                <span className="w-2 h-2 rounded-full bg-bone" />
-                <span className="w-2 h-2 rounded-full bg-bone" />
+                <MacWindowDots className="gap-1" />
                 <span className="ml-2 text-[10px] text-fog font-mono">{r.name}/README.md</span>
                 <span className="ml-auto flex gap-1.5">
                   <span className="text-[10px] px-2 py-0.5 rounded-full border border-bone text-fog">

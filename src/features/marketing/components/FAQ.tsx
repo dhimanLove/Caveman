@@ -13,7 +13,7 @@ const faqs = [
   },
   {
     q: "Do you support private repos?",
-    a: "Yes - paste any GitHub URL. Public repos work without extra setup; private repos are supported when the deployment has a configured GitHub access token.",
+    a: "Public GitHub repositories are supported. Private-repository access will require a user-scoped GitHub authorization flow.",
   },
   {
     q: "What sections can I include?",

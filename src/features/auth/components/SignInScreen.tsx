@@ -24,7 +24,7 @@ export function SignInScreen({ onSignIn, error }: { onSignIn: () => void; error?
           <LockSimple size={13} className="shrink-0 mt-0.5 text-ink/60" />
           <span className="text-xs text-ink/60 leading-relaxed">
             Sign-in enables generation and tracks your limit (10 free per 10 hours during early
-            access). Private repository scans require a configured GitHub access token.
+            access). Private repository scans are not enabled; repository access must be bound to the requesting GitHub user.
           </span>
         </div>
         {error && (

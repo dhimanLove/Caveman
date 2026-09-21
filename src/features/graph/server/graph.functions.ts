@@ -1,7 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { checkIpLimit, getClientIp, isSameOrigin } from "@/shared/lib/request-guard.server";
-import { fetchWithTimeout, isRecord } from "@/shared/lib/http.server";
+import { fetchWithTimeout, isRecord, readJsonWithLimit } from "@/shared/lib/http.server";
 
 interface CommitNode {
   sha: string;
@@ -60,12 +60,10 @@ export const fetchCommitGraph = createServerFn({ method: "GET" })
     const owner = match[1];
     const repo = match[2].replace(/\.git$/, "");
 
-    const token = process.env.GITHUB_TOKEN || "";
     const headers: Record<string, string> = {
       Accept: "application/vnd.github+json",
       "User-Agent": "caveman-graph",
     };
-    if (token) headers.Authorization = `Bearer ${token}`;
 
     // Fetch commits (up to 100 for performance)
     const commitRes = await fetchWithTimeout(
@@ -84,7 +82,7 @@ export const fetchCommitGraph = createServerFn({ method: "GET" })
       throw new Error("Could not load commit data. Try again later.");
     }
 
-    const commitsPayload: unknown = await commitRes.json();
+    const commitsPayload: unknown = await readJsonWithLimit(commitRes, 2 * 1024 * 1024);
     if (!Array.isArray(commitsPayload)) {
       throw new Error("GitHub returned an invalid commit response.");
     }
@@ -136,7 +134,9 @@ export const fetchCommitGraph = createServerFn({ method: "GET" })
       { headers },
       8_000,
     );
-    const repoPayload: unknown = repoRes.ok ? await repoRes.json() : {};
+    const repoPayload: unknown = repoRes.ok
+      ? await readJsonWithLimit(repoRes, 256 * 1024)
+      : {};
     const branch = asString(asRecord(repoPayload).default_branch, "main");
 
     return {

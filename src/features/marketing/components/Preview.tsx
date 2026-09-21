@@ -1,27 +1,93 @@
-import { useRef, useEffect } from "react";
+import { useRef, useEffect, useState } from "react";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { KoboyoIllustration } from "@/shared/components/illustrations/KoboyoIllustration";
+import { MacWindowDots } from "@/shared/components/ui/MacWindowDots";
 
 gsap.registerPlugin(ScrollTrigger);
 
-const codeLines = [
-  { w: "w-24", delay: 0 },
-  { w: "w-full", delay: 0.08 },
-  { w: "w-4/5", delay: 0.16 },
-  { w: "w-3/4", delay: 0.24 },
-  { w: "w-5/6", delay: 0.32 },
-  { w: "w-2/3", delay: 0.4 },
-  { w: "w-full", delay: 0.48 },
-  { w: "w-4/5", delay: 0.56 },
-];
-
 const badgeLabels = ["MIT", "TypeScript", "React", "Next.js", "Prisma"];
 
-const sectionLabels = ["Installation", "Usage", "API Reference", "Architecture", "Contributing"];
+const previewSections = [
+  {
+    id: "overview",
+    label: "Overview",
+    heading: "LaunchKit",
+    description:
+      "A typed starter for shipping production-ready web apps with auth, billing, and background jobs.",
+    kind: "overview" as const,
+  },
+  {
+    id: "installation",
+    label: "Installation",
+    heading: "Installation",
+    description:
+      "Clone the repository, install dependencies, and start the local development server.",
+    kind: "code" as const,
+    code: [
+      "git clone https://github.com/acme/launchkit.git",
+      "cd launchkit",
+      "npm install",
+      "npm run dev",
+    ],
+  },
+  {
+    id: "usage",
+    label: "Usage",
+    heading: "Usage",
+    description: "Create a project client and fetch the current workspace in a few lines.",
+    kind: "code" as const,
+    code: [
+      'import { LaunchKit } from "@acme/launchkit";',
+      "",
+      "const kit = new LaunchKit({ workspace: user.id });",
+      "const projects = await kit.projects.list();",
+    ],
+  },
+  {
+    id: "api",
+    label: "API Reference",
+    heading: "API Reference",
+    description: "The generated docs turn discovered routes into a useful, scannable reference.",
+    kind: "table" as const,
+    rows: [
+      ["GET", "/api/projects", "List workspace projects"],
+      ["POST", "/api/projects", "Create a project"],
+      ["DELETE", "/api/projects/:id", "Remove a project"],
+    ],
+  },
+  {
+    id: "architecture",
+    label: "Architecture",
+    heading: "Architecture",
+    description:
+      "A grounded folder map shows how the pieces fit together before anyone reads the code.",
+    kind: "tree" as const,
+    tree: [
+      "src/",
+      "├── routes/        API and page handlers",
+      "├── features/      domain modules",
+      "├── lib/           shared services",
+      "└── db/            schema and migrations",
+    ],
+  },
+  {
+    id: "contributing",
+    label: "Contributing",
+    heading: "Contributing",
+    description: "Clear next steps help a new contributor make a useful first change quickly.",
+    kind: "list" as const,
+    list: [
+      "Create a feature branch from main",
+      "Run npm test before opening a pull request",
+      "Add a regression test for behavior changes",
+    ],
+  },
+];
 
 export function Preview() {
   const sectionRef = useRef<HTMLElement>(null);
+  const [activeId, setActiveId] = useState("overview");
 
   useEffect(() => {
     const ctx = gsap.context(() => {
@@ -37,6 +103,9 @@ export function Preview() {
     }, sectionRef);
     return () => ctx.revert();
   }, []);
+
+  const activeSection =
+    previewSections.find((section) => section.id === activeId) ?? previewSections[0];
 
   return (
     <section ref={sectionRef} className="py-24 md:py-32 bg-cream relative overflow-hidden">
@@ -59,31 +128,48 @@ export function Preview() {
         </div>
 
         <div className="preview-item rounded-md border border-bone bg-paper overflow-hidden">
-          <div className="flex items-center gap-1.5 border-b border-bone px-5 py-3.5">
-            <span className="w-2.5 h-2.5 rounded-full bg-bone" />
-            <span className="w-2.5 h-2.5 rounded-full bg-bone" />
-            <span className="w-2.5 h-2.5 rounded-full bg-bone" />
+          <div className="flex flex-wrap items-center gap-1.5 border-b border-bone px-5 py-3.5">
+            <MacWindowDots />
             <span className="ml-2 text-xs text-fog font-mono">README.md - Caveman</span>
+            <span className="ml-auto text-[10px] uppercase tracking-wider text-electric-iris">
+              Interactive example · LaunchKit
+            </span>
           </div>
 
           <div className="p-6 md:p-8">
             <div className="flex flex-col md:flex-row gap-8">
               <div className="md:w-1/4 space-y-1.5">
-                <div className="text-[10px] text-fog uppercase tracking-widest mb-2">Sections</div>
-                {sectionLabels.map((s, i) => (
-                  <div
-                    key={i}
-                    className="flex items-center gap-2 px-2.5 py-1.5 rounded-[4px] bg-cream text-xs text-ink/80"
+                <div className="text-[10px] text-fog uppercase tracking-widest mb-2">
+                  Explore the output
+                </div>
+                {previewSections.map((section) => (
+                  <button
+                    key={section.id}
+                    type="button"
+                    onClick={() => setActiveId(section.id)}
+                    aria-pressed={activeId === section.id}
+                    className={`w-full flex items-center gap-2 px-2.5 py-1.5 rounded-[4px] text-left text-xs transition-colors ${activeId === section.id ? "bg-ink text-paper" : "bg-cream text-ink/80 hover:bg-bone/60"}`}
                   >
-                    <span className="w-1.5 h-1.5 rounded-full bg-ink" />
-                    {s}
-                  </div>
+                    <span
+                      className={`w-1.5 h-1.5 rounded-full ${activeId === section.id ? "bg-electric-iris" : "bg-ink"}`}
+                    />
+                    {section.label}
+                  </button>
                 ))}
               </div>
 
               <div className="md:w-3/4 space-y-4">
                 <div className="pb-3 border-b border-bone">
-                  <div className="h-7 w-48 rounded-[4px] bg-ink/10 animate-pulse" />
+                  <div className="text-[10px] text-fog uppercase tracking-widest mb-2">
+                    {activeSection.heading}
+                  </div>
+                  <h3 className="text-2xl font-light text-ink">
+                    {activeSection.heading === "Overview" ? "# " : ""}
+                    {activeSection.heading}
+                  </h3>
+                  <p className="mt-2 max-w-2xl text-sm leading-relaxed text-fog">
+                    {activeSection.description}
+                  </p>
                   <div className="flex gap-2 mt-2">
                     {badgeLabels.map((b, i) => (
                       <span
@@ -96,58 +182,83 @@ export function Preview() {
                   </div>
                 </div>
 
-                <div className="space-y-2">
-                  <div className="h-3 w-16 rounded-full bg-bone" />
-                  {codeLines.map((l, i) => (
-                    <div key={i} className="flex items-center gap-2">
-                      <span className="text-[9px] text-fog/40 font-mono w-6 text-right">
-                        {i + 1}
+                {activeSection.kind === "overview" && (
+                  <div className="rounded-md border border-bone bg-cream p-4 text-sm leading-relaxed text-ink/70">
+                    <p>
+                      LaunchKit gives teams a typed foundation for building and shipping web
+                      products without repeating the same setup work.
+                    </p>
+                    <div className="mt-4 grid grid-cols-2 gap-2 text-xs">
+                      <span className="rounded border border-bone bg-paper px-3 py-2">
+                        Auth included
                       </span>
-                      <div className={`h-3 ${l.w} rounded-full bg-bone/70`} />
+                      <span className="rounded border border-bone bg-paper px-3 py-2">
+                        API-first
+                      </span>
+                      <span className="rounded border border-bone bg-paper px-3 py-2">
+                        Type-safe
+                      </span>
+                      <span className="rounded border border-bone bg-paper px-3 py-2">
+                        Deploy-ready
+                      </span>
                     </div>
-                  ))}
-                </div>
-
-                <div className="my-4 rounded-md bg-ink p-4">
-                  <div className="flex gap-1 mb-2">
-                    <span className="w-2 h-2 rounded-full bg-cream/30" />
-                    <span className="w-2 h-2 rounded-full bg-cream/30" />
-                    <span className="w-2 h-2 rounded-full bg-cream/30" />
                   </div>
-                  <div className="space-y-1.5">
-                    <div className="h-3 w-3/4 rounded-full bg-cream/10" />
-                    <div className="h-3 w-1/2 rounded-full bg-cream/10" />
-                    <div className="h-3 w-4/5 rounded-full bg-cream/10" />
-                    <div className="h-3 w-2/3 rounded-full bg-cream/5" />
-                  </div>
-                </div>
+                )}
 
-                <div className="rounded-md border border-bone overflow-hidden">
-                  <div className="grid grid-cols-3 bg-cream border-b border-bone">
-                    {["Method", "Endpoint", "Description"].map((h, i) => (
+                {activeSection.kind === "code" && (
+                  <div className="rounded-md bg-ink p-4 text-cream">
+                    <MacWindowDots className="mb-3 gap-1" />
+                    <pre className="overflow-x-auto text-xs leading-7">
+                      <code>{activeSection.code?.join("\n")}</code>
+                    </pre>
+                  </div>
+                )}
+
+                {activeSection.kind === "table" && (
+                  <div className="overflow-hidden rounded-md border border-bone">
+                    <div className="grid grid-cols-3 border-b border-bone bg-cream">
+                      {["Method", "Endpoint", "Description"].map((heading) => (
+                        <div
+                          key={heading}
+                          className="px-3 py-2 text-[10px] uppercase tracking-wider text-fog"
+                        >
+                          {heading}
+                        </div>
+                      ))}
+                    </div>
+                    {activeSection.rows?.map(([method, endpoint, description]) => (
                       <div
-                        key={i}
-                        className="px-3 py-2 text-[10px] text-fog uppercase tracking-wider"
+                        key={endpoint}
+                        className="grid grid-cols-3 border-b border-bone last:border-none"
                       >
-                        {h}
+                        <div className="px-3 py-2 font-mono text-[10px] text-electric-iris">
+                          {method}
+                        </div>
+                        <div className="px-3 py-2 font-mono text-[10px] text-ink/70">
+                          {endpoint}
+                        </div>
+                        <div className="px-3 py-2 text-[10px] text-fog">{description}</div>
                       </div>
                     ))}
                   </div>
-                  {[1, 2, 3].map((row) => (
-                    <div
-                      key={row}
-                      className="grid grid-cols-3 border-b border-bone last:border-none"
-                    >
-                      <div className="px-3 py-2 text-[10px] text-ink/70 font-mono">GET</div>
-                      <div className="px-3 py-2 text-[10px] text-ink/70 font-mono">
-                        /api/{["users", "posts", "auth"][row - 1]}
-                      </div>
-                      <div className="px-3 py-2 text-[10px] text-fog">
-                        {["Returns all users", "Fetch posts", "Authenticate"][row - 1]}
-                      </div>
-                    </div>
-                  ))}
-                </div>
+                )}
+
+                {activeSection.kind === "tree" && (
+                  <pre className="overflow-x-auto rounded-md border border-bone bg-cream p-4 font-mono text-xs leading-7 text-ink/70">
+                    <code>{activeSection.tree?.join("\n")}</code>
+                  </pre>
+                )}
+
+                {activeSection.kind === "list" && (
+                  <ul className="space-y-2 rounded-md border border-bone bg-cream p-4 text-sm text-ink/70">
+                    {activeSection.list?.map((item) => (
+                      <li key={item} className="flex items-start gap-2">
+                        <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-electric-iris" />
+                        {item}
+                      </li>
+                    ))}
+                  </ul>
+                )}
               </div>
             </div>
           </div>

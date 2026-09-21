@@ -20,7 +20,7 @@
 
 1. **Prerequisites**
    - Node 20+ (or Bun 1.0+)
-   - GitHub personal access token with `repo` scope (for private repos)
+   - A public GitHub repository URL (private-repository access is intentionally disabled)
    - Groq API key (`GENERATIVE_KEY`)
    - Firebase project with Firestore and Authentication enabled
 
@@ -45,8 +45,7 @@
    Create a `.env` file at the project root with the following keys:
 
    ```dotenv
-   GITHUB_TOKEN=ghp_XXXXXXXXXXXXXXXXXXXX
-   GROQ_API_KEY=sk-XXXXXXXXXXXXXXXXXXXX
+   GENERATIVE_KEY=gsk_XXXXXXXXXXXXXXXXXXXX
    USER_RATE_LIMIT=8
    REQUIRE_DURABLE_RATE_LIMIT=true
    FIREBASE_PROJECT_ID=your-firebase-project
@@ -87,7 +86,7 @@ instances. The browser counter is only a display cache and cannot bypass the ser
 4. In **Project settings → Service accounts**, generate a private key. Store the complete JSON as
    the server-only `FIREBASE_SERVICE_ACCOUNT_JSON` environment variable. Never use `VITE_` for
    this value and never commit it.
-5. Set `USER_RATE_LIMIT=8` and `REQUIRE_DURABLE_RATE_LIMIT=true` in Vercel for Production. Redeploy
+5. Set `USER_RATE_LIMIT=8`, `REQUIRE_DURABLE_RATE_LIMIT=true`, and `ENFORCE_APP_CHECK=true` in Vercel for Production. Redeploy
    after saving the variables.
 
 Firebase UID is used as the quota key. With this app's Google-only sign-in, that is one stable
@@ -112,7 +111,7 @@ quota per Gmail/Google account, even if the user changes browsers or devices.
 import { groqChatComplete, GroqChatOptions } from "@/shared/lib/groq-chat.server";
 
 const options: GroqChatOptions = {
-  apiKey: process.env.GROQ_API_KEY!,
+  apiKey: process.env.GENERATIVE_KEY!,
   model: "llama3-70b-8192",
   messages: [
     { role: "system", content: "You are a helpful README generator." },
@@ -339,7 +338,7 @@ Caveman/
 - **AI‑Powered Documentation** - Uses Groq (OpenAI‑compatible) to generate structured, production‑ready README files with configurable style and tone.
 - **Full‑stack UI** - Built with TanStack Start, React 19, and Tailwind CSS v4 for a responsive, accessible interface.
 - **Rate Limiting** - Sliding‑window limiter backed by Firestore to protect the AI endpoint.
-- **Secure Authentication** - GitHub OAuth for private repo access; Firebase Auth for user sessions.
+- **Secure Authentication** - Firebase Auth for user sessions; repository scanning is public-only until user-scoped GitHub OAuth is implemented.
 - **Extensible Architecture** - Modular route tree, pluggable AI provider, and clear separation of concerns.
 
 ---

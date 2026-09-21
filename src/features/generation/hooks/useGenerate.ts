@@ -175,7 +175,7 @@ function classifyError(err: unknown): { message: string; cooldown: number } {
   if (rawMessage.includes("Could not access repository files")) {
     return {
       message:
-        "Could not read the repository files. Private repos require a configured GitHub access token.",
+        "Could not read the repository files. Only public GitHub repositories are supported.",
       cooldown: 0,
     };
   }

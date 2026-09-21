@@ -2,7 +2,7 @@
  * High-speed OpenAI-compatible chat completions client for Groq, Google Gemini, and OpenAI.
  */
 
-import { fetchWithTimeout } from "./http.server";
+import { fetchWithTimeout, readJsonWithLimit } from "./http.server";
 
 export type ChatMessage = {
   role: "system" | "user" | "assistant";
@@ -116,7 +116,7 @@ export async function groqChatComplete(options: GroqChatOptions): Promise<GroqCh
     if (res.ok) {
       let data: unknown;
       try {
-        data = await res.json();
+        data = await readJsonWithLimit(res, 2 * 1024 * 1024);
       } catch {
         throw new Error("AI provider returned an unreadable response format.");
       }
@@ -145,7 +145,7 @@ export async function groqChatComplete(options: GroqChatOptions): Promise<GroqCh
     // Parse provider error response
     let errorMessage = `AI request failed (HTTP ${res.status})`;
     try {
-      const errData: unknown = await res.json();
+      const errData: unknown = await readJsonWithLimit(res, 256 * 1024);
       const inner = isRecord(errData) ? errData.error : undefined;
       if (typeof inner === "string") errorMessage = inner;
       else if (isRecord(inner) && typeof inner.message === "string") errorMessage = inner.message;

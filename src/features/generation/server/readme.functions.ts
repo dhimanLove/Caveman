@@ -1,7 +1,12 @@
 import { z } from "zod";
 import { groqChatComplete } from "@/shared/lib/groq-chat.server";
 import { getModelCandidates } from "@/shared/lib/ai-gateway.server";
-import { fetchWithTimeout, isRecord } from "@/shared/lib/http.server";
+import {
+  fetchWithTimeout,
+  isRecord,
+  readJsonWithLimit,
+  readResponseTextWithLimit,
+} from "@/shared/lib/http.server";
 
 /**
  * In-memory LRU cache for generated READMEs.
@@ -117,10 +122,9 @@ function getGitHubHeaders(): Record<string, string> {
     Accept: "application/vnd.github.v3+json",
     "User-Agent": "caveman-readme-generator",
   };
-  const token = process.env.GITHUB_TOKEN;
-  if (token && token.trim().length > 10) {
-    headers.Authorization = `Bearer ${token.trim()}`;
-  }
+  // Repository URLs are user-selected. Never attach an operator credential:
+  // doing so would turn a public documentation feature into a private-repo
+  // read primitive. Private-repo support requires a user-scoped OAuth token.
   return headers;
 }
 
@@ -148,7 +152,7 @@ async function fetchRepoMetadata(owner: string, repo: string): Promise<RepoMetad
       headers: getGitHubHeaders(),
     });
     if (res.ok) {
-      const data: unknown = await res.json();
+      const data: unknown = await readJsonWithLimit(res, 256 * 1024);
       const record = isRecord(data) ? data : {};
       const license = isRecord(record.license) ? record.license : {};
       return {
@@ -182,7 +186,7 @@ async function fetchRawFile(
     const res = await fetchWithTimeout(url, {
       headers: getGitHubHeaders(),
     });
-    if (res.ok) return await res.text();
+    if (res.ok) return await readResponseTextWithLimit(res, 512 * 1024);
   } catch {
     // Ignore fetch failure
   }
@@ -196,7 +200,7 @@ async function fetchLanguages(owner: string, repo: string): Promise<Record<strin
       headers: getGitHubHeaders(),
     });
     if (res.ok) {
-      const data: unknown = await res.json();
+      const data: unknown = await readJsonWithLimit(res, 128 * 1024);
       if (!isRecord(data)) return {};
       const languages: Record<string, number> = {};
       for (const [language, bytes] of Object.entries(data)) {
@@ -314,7 +318,7 @@ async function scanRepository(
     });
 
     if (res.ok) {
-      const data: unknown = await res.json();
+      const data: unknown = await readJsonWithLimit(res, 4 * 1024 * 1024);
       const tree = isRecord(data) && Array.isArray(data.tree) ? data.tree : [];
       if (tree.length > 0) {
         const excludePatterns =
@@ -459,7 +463,7 @@ async function scanRepository(
   otherSource.sort((a, b) => a.length - b.length);
 
   // Merge: high-signal first, then other source. Keep a broad, grounded
-  // corpus so route-heavy and private repositories do not collapse into a
+  // corpus so route-heavy repositories do not collapse into a
   // README-only summary. The prompt is still clamped separately below.
   const MAX_FETCHED_FILES = 120;
   for (const p of highSignalSource) {
@@ -477,8 +481,10 @@ async function scanRepository(
     }
   }
 
-  // Parallel raw file fetch with timeout
-  const fetchPromises = filesToFetch.map(async (path) => {
+  // Bounded parallel raw-file fetches with timeout. Keep the batch small even
+  // though the scan may include up to MAX_FETCHED_FILES paths; the repository
+  // URL is user-selected and GitHub is an external dependency.
+  const fetchFile = async (path: string) => {
     let text = await fetchRawFile(owner, repo, path, defaultBranch);
     if (!text && defaultBranch !== "main" && defaultBranch !== "master") {
       text =
@@ -486,9 +492,14 @@ async function scanRepository(
         (await fetchRawFile(owner, repo, path, "master"));
     }
     return { path, text };
-  });
+  };
 
-  const results = await Promise.allSettled(fetchPromises);
+  const results: PromiseSettledResult<{ path: string; text: string | null }>[] = [];
+  const FETCH_CONCURRENCY = 8;
+  for (let i = 0; i < filesToFetch.length; i += FETCH_CONCURRENCY) {
+    const batch = filesToFetch.slice(i, i + FETCH_CONCURRENCY).map(fetchFile);
+    results.push(...(await Promise.allSettled(batch)));
+  }
   for (const r of results) {
     if (r.status === "fulfilled" && r.value.text) {
       fetchedFiles.set(r.value.path, r.value.text);
@@ -2058,7 +2069,7 @@ export async function runReadmeGeneration(rawInput: unknown): Promise<ReadmeResu
 
     if (allFilePaths.length === 0 && fetchedFiles.size === 0) {
       throw new Error(
-        "Could not access repository files. Public repos work without extra setup; private repos require a configured GitHub access token.",
+        "Could not access repository files. Only public GitHub repositories are supported.",
       );
     }
 
