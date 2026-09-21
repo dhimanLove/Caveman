@@ -10,6 +10,7 @@ import {
 } from "@tanstack/react-router";
 import { type ReactNode } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { Analytics } from "@vercel/analytics/react";
 
 import appCss from "../styles.css?url";
 import { SmoothScroll } from "../shared/components/layout/SmoothScroll";
@@ -198,6 +199,7 @@ function RootShell({ children }: { children: ReactNode }) {
       </head>
       <body>
         {children}
+        <Analytics />
         <Scripts />
       </body>
     </html>
