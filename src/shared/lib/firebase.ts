@@ -61,7 +61,7 @@ try {
 
 // App Check (ReCaptcha v3). Needs VITE_RECAPTCHA_SITE_KEY; when absent (local
 // dev without a provisioned project) the provider is skipped and the frontend
-// sends no token — deployed runtimes fail closed when App Check is unavailable.
+// sends no token — the server only enforces when ENFORCE_APP_CHECK=true.
 let appCheck: AppCheck | null = null;
 const recaptchaSiteKey = env.VITE_RECAPTCHA_SITE_KEY as string | undefined;
 if (recaptchaSiteKey) {
